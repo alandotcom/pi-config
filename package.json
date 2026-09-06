@@ -16,7 +16,10 @@
   "pi": {
     "extensions": [
       "./extensions"
-    ]
+    ],
+    "subagents": {
+      "agents": ["./agents"]
+    }
   },
   "files": [
     "extensions",
