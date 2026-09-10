@@ -113,9 +113,9 @@ verification behavior.
 
 ### Agent overrides
 
-The full profile pins the `Explore` subagent to `openrouter/openai/gpt-5.6-luna` while preserving
-its read-only tools and search prompt. The installer copies
-[`profile/agents/Explore.md`](profile/agents/Explore.md) to the global Pi agent directory.
+The full profile pins `Explore` to `openrouter/openai/gpt-5.6-luna`. It also provides `review` as a
+read-only reviewer pinned to `openrouter/openai/gpt-5.6-sol` with high thinking. The installer copies
+the definitions under [`profile/agents/`](profile/agents/) to the global Pi agent directory.
 
 ### Thermos
 

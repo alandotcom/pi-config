@@ -212,10 +212,15 @@ test("installer merges profile files, backs up existing values, and links Thermo
   assert.equal(subagents.customSetting, true);
   assert.equal(subagents.maxConcurrent, 3);
   assert.equal(readFileSync(path.join(agentDir, "AGENTS.md"), "utf8"), readFileSync(path.join(projectRoot, "profile", "AGENTS.md"), "utf8"));
-  assert.equal(
-    readFileSync(path.join(agentDir, "agents", "Explore.md"), "utf8"),
-    readFileSync(path.join(projectRoot, "profile", "agents", "Explore.md"), "utf8"),
-  );
+  for (const agent of ["Explore.md", "review.md"]) {
+    assert.equal(
+      readFileSync(path.join(agentDir, "agents", agent), "utf8"),
+      readFileSync(path.join(projectRoot, "profile", "agents", agent), "utf8"),
+    );
+  }
+  const reviewAgent = readFileSync(path.join(agentDir, "agents", "review.md"), "utf8");
+  assert.match(reviewAgent, /^model: openrouter\/openai\/gpt-5\.6-sol$/m);
+  assert.match(reviewAgent, /^thinking: high$/m);
 
   const agentLink = path.join(agentDir, "agents", "thermo-nuclear-review-subagent.md");
   assert.equal(lstatSync(agentLink).isSymbolicLink(), true);
