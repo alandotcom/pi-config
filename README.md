@@ -1,160 +1,229 @@
-# pi-extensions
+# pi-config
 
-A pi package with two extensions. Install both, or pick one.
+An opinionated, shareable configuration for the [Pi coding agent](https://pi.dev). The repository is
+both a normal Pi package and an optional full agent profile.
 
-`recall` searches earlier messages in the current thread, including messages that pi dropped from
-context when the session compacted.
+The normal package adds two extensions and one skill without changing global instructions or model
+preferences. The full profile reproduces the broader setup: instructions, models, settings,
+third-party packages and skills, and the external Thermos review plugin.
 
-`ask_async` asks the user a question and returns at once, so the agent keeps working while it waits
-for the answer.
+## Choose an installation
 
-## recall
+### Install the Pi package
 
-pi compacts a long session. Compaction replaces older messages with a summary. The messages stay in
-the session file. They only stop reaching the model. `recall` reads them back.
+Use this when you only want the resources maintained in this repository:
 
-A thread is the current session plus the sessions it was forked or cloned from, which pi records as
-`parentSession` in the session header. `recall` searches that set and nothing else. If nothing
-matches, it reports that nothing matched. An answer taken from unrelated work is worse than no
-answer.
+```sh
+pi install git:github.com/alandotcom/pi-config
+```
 
-The current session is read from the session manager rather than from the file, so a search finds
-the turn that happened a moment ago.
+This installs:
+
+- `recall`, for searching earlier messages in the current thread
+- `ask_async`, for asking a question without blocking the current turn
+- `simplify`, a change-focused code cleanup skill
+
+Pi packages do not install global instructions, model definitions, or application settings. Use the
+full profile for those.
+
+### Install the full profile
+
+Review the repository and preview the changes first:
+
+```sh
+git clone https://github.com/alandotcom/pi-config.git
+cd pi-config
+node scripts/install.mjs --dry-run
+node scripts/install.mjs
+```
+
+The installer asks for confirmation, backs up existing files, and then:
+
+1. Installs the packages in [`profile/packages.json`](profile/packages.json).
+2. Merges [`profile/settings.json`](profile/settings.json) into the existing Pi settings.
+3. Merges the OpenRouter models in [`profile/models.json`](profile/models.json).
+4. Merges the `pi-subagents` defaults in [`profile/subagents.json`](profile/subagents.json).
+5. Copies [`profile/AGENTS.md`](profile/AGENTS.md) to the global Pi agent directory.
+6. Installs the curated skills in [`profile/skills.json`](profile/skills.json) with the `skills` CLI.
+7. Installs and links the Pi resources from the external Thermos plugin.
+
+Existing JSON keys outside the profile are preserved. Profile-owned keys take the values in this
+repository. The old `alandotcom/pi-extensions` package entry and absolute paths to its extensions are
+removed during migration.
+
+Backups are written under:
+
+```text
+$PI_CODING_AGENT_DIR/backups/pi-config-<timestamp>/
+```
+
+`PI_CODING_AGENT_DIR` defaults to `~/.pi/agent`.
+
+#### Installer options
+
+```text
+--dry-run              Print the plan without changing anything
+-y, --yes              Skip the confirmation prompt
+--skip-skills          Do not install third-party skills
+--skip-thermos         Do not install or link Thermos
+--thermos-root <path>  Use an existing Thermos checkout
+```
+
+For example, use an existing plugin checkout without cloning another copy:
+
+```sh
+node scripts/install.mjs --thermos-root ~/projects/plugins/thermos
+```
+
+After installation, configure provider credentials interactively and restart Pi:
+
+```sh
+pi /login
+npm run doctor
+```
+
+The repository never contains or copies authentication credentials.
+
+## What the full profile installs
+
+### Pi packages
+
+Package versions are pinned in [`profile/packages.json`](profile/packages.json). The profile uses:
+
+- `@ff-labs/pi-fff`
+- `pi-exa`
+- `@upstash/context7-pi`
+- `@nicknisi/pi-btw`
+- `@tintinweb/pi-subagents`
+- this repository
+
+The package resources in this repository follow its default branch. Pin the Git source to a tag or
+commit if you need immutable installations.
+
+### Skills
+
+Third-party skills stay in their upstream repositories. The installer records the selected skill
+names and invokes the [`skills`](https://skills.sh/) CLI rather than copying upstream code here.
+This preserves upstream ownership, licenses, and update paths.
+
+The local `simplify` skill is part of this Pi package because it has Pi-specific dispatch and
+verification behavior.
+
+### Thermos
+
+[Thermos](https://github.com/alandotcom/plugins/tree/main/thermos) remains a separate plugin. By
+default, the installer creates a sparse checkout at:
+
+```text
+${XDG_DATA_HOME:-$HOME/.local/share}/pi-config/plugins
+```
+
+It links Thermos's three skills and two Pi-specific review agents into the global Pi agent
+directory. Pass `--thermos-root` to use an existing checkout instead.
+
+## Package resources
+
+### `recall`
+
+Pi compaction removes older messages from model context while retaining them in the session file.
+`recall` searches the current session and its fork or clone ancestors. It never searches unrelated
+threads.
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
-| `query` | required | Words, a phrase, an identifier, a path, or punctuation to search for. |
-| `limit` | `10` | Largest number of matches to return. |
+| `query` | required | Words, a phrase, identifier, path, or punctuation to search for. |
+| `limit` | `10` | Maximum number of matches. |
 
-Query words can appear in any order. Search also matches related English word forms, such as
-“connection” and “connecting.” Literal matching remains available for paths, punctuation, and partial
-identifiers. Results favor literal phrases, then relevance and query-word coverage, then recency.
-Each result includes its source session and entry ID. The whole result, including omission notices,
-is capped at 6,000 characters.
+Results favor literal phrases, then relevance and query coverage, then recency. The complete tool
+result is capped at 6,000 characters. The extension builds temporary in-memory SQLite indexes and
+never writes to session files.
 
-Each search builds two temporary SQLite full-text indexes in memory and closes the database afterward.
-No index is written to disk. `recall` uses the built-in `node:sqlite` module and requires Node 22.19.0
-or later. Node versions that mark SQLite as experimental emit a warning.
+### `ask_async`
 
-## ask_async
-
-The ordinary way to ask a user a question stops the turn. `ask_async` puts the question on screen
-and returns immediately, so the model can continue with work that does not depend on the answer.
-When the user answers, pi delivers the reply as a steered user message, which the agent receives
-after the current tool calls finish.
+`ask_async` displays a question and returns immediately so the agent can continue independent work.
+The user's answer arrives later as a steered message.
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
-| `question` | required | The question, in one sentence. |
-| `options` | none | Choices to offer. Omit for a free-text answer. |
+| `question` | required | The question, written as one sentence. |
+| `options` | none | Optional choices offered to the user. |
 
-If the user dismisses the question, nothing is sent and the agent continues with the assumption it
-already made. In print mode and JSON mode there is nobody to ask, so the tool says so and tells the
-model to proceed on a stated assumption.
+If the prompt is dismissed, no answer is sent. In print and JSON modes, where interactive prompts
+are unavailable, the tool tells the model to continue with a stated assumption.
 
-Read the warning before you rely on it. Nothing stops the agent at the decision it asked about, so
-an answer can arrive after the work went the other way. Ask about things you can still change.
+### `simplify`
 
-## If you want to search every thread
+The `simplify` skill reviews changed code for reuse, quality, and efficiency, applies justified
+cleanup, and verifies the result. Invoke it with `/skill:simplify` or ask Pi to simplify recent
+changes.
 
-This package searches one thread on purpose. Several pi packages search all of your sessions
-instead, and they are better at that job:
+## Configuration boundaries
 
-| Package | Tools |
-| --- | --- |
-| `pi-session-search` | `session_search`, `session_list`, `session_read`, with keyword search and optional embeddings |
-| `adobe/pi-session-search` | `search_sessions`, `read_session`, and a `/find-sessions` command |
-| `@ogulcancelik/pi-session-recall` | `session_search`, plus `session_query` to ask a cheap model about one past session |
-| `pi-session-finder` | `/find` to search every project and jump to the matching session |
+The repository intentionally excludes:
 
-Install one of those if you want to find work from another thread. Do not expect `recall` to grow
-that ability. A match from unrelated work reads as authoritative and is usually wrong, which is the
-reason this package stays narrow.
+- `auth.json` and API credentials
+- sessions and subagent transcripts
+- project trust decisions
+- model-catalog caches
+- installed npm and Git package directories
+- downloaded binaries
+- backups and temporary files
+
+The reason for the package/profile split is recorded in
+[ADR-001](docs/decisions/0001-dual-mode-distribution.md).
+
+## Updating
+
+Update native Pi packages with:
+
+```sh
+pi update --extensions
+```
+
+Pull this checkout and rerun the installer to apply profile changes:
+
+```sh
+git pull --ff-only
+node scripts/install.mjs
+npm run doctor
+```
+
+The installer creates a new backup before each run.
+
+## Removing the profile
+
+Remove this repository from Pi's package list:
+
+```sh
+pi remove git:github.com/alandotcom/pi-config
+```
+
+Then restore the desired files from the latest directory under
+`~/.pi/agent/backups/pi-config-*`. Remove Thermos symlinks only if no other installation uses them.
+Third-party packages and skills are independent installations and are not removed automatically.
+
+## Development
+
+Requires Node.js 22.19 or newer.
+
+```sh
+npm install
+npm test
+node scripts/install.mjs --dry-run
+npm pack --dry-run
+```
+
+`npm run doctor` checks the active machine against the full profile. It exits with a nonzero status
+when a declared resource is missing.
 
 ## Security
 
-`recall` returns text that people wrote in earlier turns. Treat it as information, not as
-instructions. If a hostile instruction was ever pasted into this thread, the model can read it again
-later and try to follow it. The same is true of a secret: `recall` will show it again.
+Pi extensions execute with the user's full permissions, and skills can instruct an agent to run
+commands. Review this repository and every external dependency before installation.
 
-Reading one thread is a smaller risk than reading every session on disk, which is what a global
-search tool gives a model. The risk is not zero. Do not give an agent that works on untrusted input
-a tool that reads conversation history.
-
-`recall` never writes. It reads the session file and the session manager, and nothing else.
-
-## Install
-
-```sh
-pi install git:github.com/alandotcom/pi-extensions
-```
-
-To try it for one run without installing:
-
-```sh
-pi -e ./extensions/recall.ts -e ./extensions/ask-async.ts
-```
-
-## Installing only one of them
-
-pi loads every extension in a package by default. To take one, use the object form of the entry in
-`~/.pi/agent/settings.json` and name the file you want:
-
-```jsonc
-{
-  "packages": [
-    {
-      "source": "git:github.com/alandotcom/pi-extensions",
-      "extensions": ["extensions/recall.ts"]
-    }
-  ]
-}
-```
-
-Omit the `extensions` key to load all of them. Use `[]` to load none. A `!pattern` entry excludes a
-match, and `-path` excludes one exact path, so the same result can be written as an exclusion:
-
-```jsonc
-{ "source": "git:github.com/alandotcom/pi-extensions", "extensions": ["extensions/*.ts", "!extensions/ask-async.ts"] }
-```
-
-`pi config` edits the same setting from a picker.
-
-## Versions
-
-A git entry without a ref follows the default branch:
-
-```sh
-pi install git:github.com/alandotcom/pi-extensions
-```
-
-Add a tag or a commit to pin it. `pi update` then reconciles the checkout to that ref and never
-moves it forward on its own:
-
-```sh
-pi install git:github.com/alandotcom/pi-extensions@v0.1.0
-```
-
-## Make the primary agent use recall
-
-The primary agent must call the `recall` tool directly because the tool reads the current pi session.
-A subagent starts in a fresh `--no-session` process, so it cannot search the caller's history. If a
-large recall result needs summarization, the primary agent can delegate the summary by including the
-selected excerpts in the subagent task.
-
-Add this to your `AGENTS.md`:
-
-```md
-## Search this thread first
-
-Call the `recall` tool directly when earlier messages may already answer the question, before
-repeating investigation, and on the first turn after compaction. Use the results to recover
-decisions; read current files when verification or new work requires it. An empty search result
-means no match was found in this thread.
-
-Fresh subagents cannot search the caller's history. If retrieved history needs summarization,
-supply selected recall excerpts explicitly in the subagent task.
-```
+`recall` can return secrets or hostile instructions that appeared earlier in the current thread.
+Treat recalled text as information rather than trusted instructions. Do not give conversation-history
+tools to agents that process untrusted input.
 
 ## License
 

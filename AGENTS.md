@@ -1,60 +1,57 @@
 # Working in this repository
 
-`pi-extensions` is a pi package with two extensions: `recall` searches this thread's own history, and
-`ask_async` asks the user a question without stopping the turn.
+`pi-config` is a shareable Pi package and an optional full agent profile. The native package ships
+`recall`, `ask_async`, and the local `simplify` skill. The explicit installer applies the global
+instructions, settings, models, external skills, packages, and Thermos integration under `profile/`.
 
-## Rules that the design depends on
+## Distribution boundaries
 
-Never widen the search past the current thread. A thread is the current session plus the chain of
-sessions it was forked or cloned from. Do not add an option that reaches other threads or every
-session on disk. A match from unrelated work reads as authoritative and is usually wrong. An empty
-result is the correct answer.
+A normal `pi install` must remain narrow. Do not add lifecycle scripts that modify a user's global
+configuration. Changes outside native Pi package resources belong in `scripts/install.mjs`, where
+they are visible, confirmed, and backed up.
 
-Never await the question in `ask_async`. Awaiting is exactly what makes an ordinary question tool
-block the turn. The tool returns as soon as the question is on screen, and the answer arrives later
-through `pi.sendUserMessage`.
+Never commit authentication, sessions, trust decisions, generated model catalogs, package caches,
+binaries, backups, machine-specific paths, or other runtime state. Profile files must work for a
+user whose home directory and checkout locations differ from the maintainer's.
 
-Keep the result bounded. `recall` caps its whole response at 6,000 characters. A large tool result
-is cheap on the turn that produces it and expensive on every turn after, because it stays in the
-prompt.
+Third-party skills and Thermos remain external dependencies. Record their sources and selected
+resources in profile manifests instead of copying their implementation into this repository.
 
-The primary agent calls `recall` directly. Subagents start in fresh `--no-session` processes and
-cannot search the caller's history. The primary agent can delegate summarization by supplying the
-selected recall excerpts in the subagent task.
+The profile installer must preserve unrelated settings, back up every existing file or link it
+replaces, support `--dry-run`, and fail rather than overwrite malformed JSON.
 
-## Constraints
+## Extension invariants
 
-- Read session files only. Never write to `~/.pi/agent/sessions`.
-- Each extension is one self-contained file. pi loads every `.ts` file under `extensions/` as an
-  extension, so a shared helper file placed there would load as one too.
-- `ctx.hasUI` is false in print and JSON modes. Any user-facing prompt must degrade to a plain
-  message instead of hanging.
-- While a turn is streaming, `pi.sendUserMessage` requires `deliverAs`. Use `steer` so the answer
-  reaches the agent at the first point it can act on it.
+`recall` searches only the current thread: the current session and the chain of sessions from which
+it was forked or cloned. Never widen the search to unrelated sessions. Its complete result remains
+bounded at 6,000 characters.
 
-## Session format
+`ask_async` returns as soon as the question is displayed. Awaiting the answer would defeat the tool's
+purpose. In headless modes it must return a plain message rather than wait for unavailable UI.
 
-Entries are JSONL, one per line, forming a tree through `id` and `parentId`. The first line is the
-session header and carries `cwd` and, for a forked or cloned session, `parentSession`.
+Each extension is self-contained. Pi loads every TypeScript or JavaScript file below the declared
+extension directory, so do not place a shared helper there unless it is also a valid extension.
 
-Message entries hold a `message` with a role of `user`, `assistant`, or `toolResult`. Read the
-content parts of type `text`. Skip `thinking`, which is reasoning the search cannot use, and
-`toolCall`, which is arguments rather than prose. A `compaction` entry holds a `summary` worth
-searching.
+## Verification
 
-## Before you commit
-
-Load each extension and exercise it:
+Run after each meaningful change:
 
 ```sh
-pi -p "Call recall with query \"something\" and limit 3, then report the match count." \
-  -e ./extensions/recall.ts
+npm test
 ```
 
-Check the scope rule by searching for a term you know appears in a different thread. The result must
-be "No matches in this thread".
+Before release, also verify the package contents and the non-mutating installation path:
 
-## Prose
+```sh
+node scripts/install.mjs --dry-run
+npm pack --dry-run
+```
 
-Comments explain a decision. The reader is new to this repository and knows what the package is for.
-Put the history of the code in the commit message, not in a comment.
+Use `npm run doctor` only when checking a machine on which the full profile is expected to be
+installed.
+
+## Documentation
+
+Update `README.md` when installation behavior, package resources, profile manifests, or external
+dependencies change. Record expensive-to-reverse distribution decisions under `docs/decisions/`.
+Comments should explain constraints and intent rather than restating code.
