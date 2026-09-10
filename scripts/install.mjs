@@ -86,6 +86,13 @@ function backupPath(target, agentDir, backupDir, dryRun) {
   });
 }
 
+function removeShadowedResource(target, agentDir, backupDir, dryRun) {
+  if (!pathExists(target)) return;
+  backupPath(target, agentDir, backupDir, dryRun);
+  console.log(`remove ${target} (provided by the installed package)`);
+  if (!dryRun) fs.rmSync(target, { recursive: true, force: true });
+}
+
 function replaceWithFile(source, target, agentDir, backupDir, dryRun) {
   backupPath(target, agentDir, backupDir, dryRun);
   console.log(`copy ${source} -> ${target}`);
@@ -113,7 +120,8 @@ function replaceWithLink(source, target, agentDir, backupDir, dryRun) {
   if (dryRun) return;
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.rmSync(target, { recursive: true, force: true });
-  fs.symlinkSync(source, target);
+  const linkType = fs.statSync(source).isDirectory() ? "junction" : "file";
+  fs.symlinkSync(source, target, linkType);
 }
 
 function readExistingJson(file) {
@@ -218,9 +226,21 @@ export async function main(argv = process.argv.slice(2)) {
   const subagentsPath = path.join(agentDir, "subagents.json");
   const agentsPath = path.join(agentDir, "AGENTS.md");
 
+  // Validate every JSON file before package installation changes settings.
+  readExistingJson(settingsPath);
+  readExistingJson(modelsPath);
+  readExistingJson(subagentsPath);
+
   backupPath(settingsPath, agentDir, backupDir, options.dryRun);
 
   for (const source of packages) run("pi", ["install", source], options.dryRun);
+
+  removeShadowedResource(
+    path.join(agentDir, "skills", "simplify"),
+    agentDir,
+    backupDir,
+    options.dryRun,
+  );
 
   const existingSettings = readExistingJson(settingsPath);
   const profileSettings = readJson(path.join(root, "profile", "settings.json"));

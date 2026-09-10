@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   chmodSync,
+  existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -42,6 +43,39 @@ test("dry run reports actions without writing the target directory", () => {
   assert.deepEqual(readdirSync(home), []);
 });
 
+test("installer validates existing JSON before invoking package installation", () => {
+  const projectRoot = path.resolve(import.meta.dirname, "..");
+  const home = mkdtempSync(path.join(tmpdir(), "pi-config-invalid-"));
+  const agentDir = path.join(home, ".pi", "agent");
+  const fakeBin = path.join(home, "bin");
+  const marker = path.join(home, "pi-was-called");
+  mkdirSync(agentDir, { recursive: true });
+  mkdirSync(fakeBin);
+  writeFileSync(path.join(agentDir, "settings.json"), "{invalid");
+  const fakePi = path.join(fakeBin, "pi");
+  writeFileSync(fakePi, `#!/bin/sh\ntouch ${JSON.stringify(marker)}\n`);
+  chmodSync(fakePi, 0o755);
+
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/install.mjs", "--yes", "--skip-skills", "--skip-thermos"],
+    {
+      cwd: projectRoot,
+      env: {
+        ...process.env,
+        HOME: home,
+        PI_CODING_AGENT_DIR: agentDir,
+        PATH: `${fakeBin}:${process.env.PATH}`,
+      },
+      encoding: "utf8",
+    },
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Refusing to replace invalid JSON/);
+  assert.equal(existsSync(marker), false);
+});
+
 test("installer merges profile files, backs up existing values, and links Thermos", () => {
   const projectRoot = path.resolve(import.meta.dirname, "..");
   const home = mkdtempSync(path.join(tmpdir(), "pi-config-install-"));
@@ -62,6 +96,8 @@ test("installer merges profile files, backs up existing values, and links Thermo
   writeFileSync(path.join(agentDir, "models.json"), JSON.stringify({ providers: { local: { models: [] } } }));
   writeFileSync(path.join(agentDir, "subagents.json"), JSON.stringify({ customSetting: true }));
   writeFileSync(path.join(agentDir, "AGENTS.md"), "old instructions\n");
+  mkdirSync(path.join(agentDir, "skills", "simplify"), { recursive: true });
+  writeFileSync(path.join(agentDir, "skills", "simplify", "SKILL.md"), "old simplify\n");
 
   const fakePi = path.join(fakeBin, "pi");
   writeFileSync(fakePi, "#!/bin/sh\nexit 0\n");
@@ -110,8 +146,16 @@ test("installer merges profile files, backs up existing values, and links Thermo
   const agentLink = path.join(agentDir, "agents", "thermo-nuclear-review-subagent.md");
   assert.equal(lstatSync(agentLink).isSymbolicLink(), true);
   assert.equal(readlinkSync(agentLink), path.join(thermosRoot, "pi", "agents", "thermo-nuclear-review-subagent.md"));
+  assert.equal(
+    lstatSync(path.join(agentDir, "skills", "simplify"), { throwIfNoEntry: false }),
+    undefined,
+  );
 
   const backups = readdirSync(path.join(agentDir, "backups"));
   assert.equal(backups.length, 1);
   assert.equal(readFileSync(path.join(agentDir, "backups", backups[0], "AGENTS.md"), "utf8"), "old instructions\n");
+  assert.equal(
+    readFileSync(path.join(agentDir, "backups", backups[0], "skills", "simplify", "SKILL.md"), "utf8"),
+    "old simplify\n",
+  );
 });

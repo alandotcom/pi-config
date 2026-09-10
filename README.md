@@ -48,8 +48,9 @@ The installer asks for confirmation, backs up existing files, and then:
 7. Installs and links the Pi resources from the external Thermos plugin.
 
 Existing JSON keys outside the profile are preserved. Profile-owned keys take the values in this
-repository. The old `alandotcom/pi-extensions` package entry and absolute paths to its extensions are
-removed during migration.
+repository. During migration, the installer removes the old `alandotcom/pi-extensions` package
+entry, absolute paths to its extensions, and a top-level `skills/simplify` copy that would shadow the
+package version. Every removed path is backed up first.
 
 Backups are written under:
 
