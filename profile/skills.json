@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "source": "addyosmani/agent-skills",
+      "skills": ["api-and-interface-design", "code-review-and-quality", "documentation-and-adrs", "doubt-driven-development", "incremental-implementation"]
+    },
+    {
+      "source": "ast-grep/agent-skill",
+      "skills": ["ast-grep", "ast-grep-outline"]
+    },
+    {
+      "source": "ayghri/i-have-adhd",
+      "skills": ["i-have-adhd"]
+    },
+    {
+      "source": "cursor/plugins",
+      "skills": ["deslop", "get-pr-comments", "loop-on-ci"]
+    },
+    {
+      "source": "emilkowalski/skill",
+      "skills": ["animate", "animate-expo", "animation-vocabulary", "apple-design", "ask-sonner", "emil-design-eng", "find-animation-opportunities", "improve-animations", "pick-ui-library", "prototype", "review-animations", "write-swift"]
+    },
+    {
+      "source": "github/gh-stack",
+      "skills": ["gh-stack"]
+    },
+    {
+      "source": "mattpocock/skills",
+      "skills": ["ask-matt", "code-review", "codebase-design", "diagnosing-bugs", "domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "implement", "improve-codebase-architecture", "research", "resolving-merge-conflicts", "setup-matt-pocock-skills", "setup-ts-deep-modules", "teach", "to-questionnaire", "to-spec", "to-tickets", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]
+    },
+    {
+      "source": "pbakaus/impeccable",
+      "skills": ["impeccable"]
+    },
+    {
+      "source": "railwayapp/railway-skills",
+      "skills": ["use-railway"]
+    },
+    {
+      "source": "run-llama/llamaparse-agent-skills",
+      "skills": ["liteparse"]
+    },
+    {
+      "source": "shadcn/ui",
+      "skills": ["shadcn"]
+    },
+    {
+      "source": "vercel-labs/agent-browser",
+      "skills": ["agent-browser"]
+    },
+    {
+      "source": "vercel-labs/agent-skills",
+      "skills": ["vercel-composition-patterns", "vercel-react-best-practices", "web-design-guidelines"]
+    },
+    {
+      "source": "vercel-labs/skills",
+      "skills": ["find-skills"]
+    },
+    {
+      "source": "warpdotdev/common-skills",
+      "skills": ["write-pr-description"]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "theme": "light/dark",
+  "defaultProvider": "openrouter",
+  "defaultModel": "openai/gpt-5.6-sol",
+  "defaultThinkingLevel": "high",
+  "hideThinkingBlock": false,
+  "enabledModels": [
+    "openrouter/openai/gpt-6-astra",
+    "openrouter/openai/gpt-5.6-sol",
+    "openrouter/openai/gpt-5.6-luna",
+    "openrouter/openai/gpt-5.6-terra"
+  ],
+  "compaction": {
+    "reserveTokens": 32000,
+    "keepRecentTokens": 32000
+  },
+  "tuiMode": "regular",
+  "steeringMode": "all",
+  "followUpMode": "all",
+  "terminal": {
+    "showTerminalProgress": false
+  }
+}

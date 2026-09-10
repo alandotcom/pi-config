@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "repository": "https://github.com/alandotcom/plugins.git",
+  "directory": "thermos",
+  "skills": [
+    "thermos",
+    "thermo-nuclear-review",
+    "thermo-nuclear-code-quality-review"
+  ],
+  "agents": [
+    "thermo-nuclear-review-subagent",
+    "thermo-nuclear-code-quality-review-subagent"
+  ]
+}

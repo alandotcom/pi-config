@@ -1,0 +1,11 @@
+{
+  "maxConcurrent": 3,
+  "maxConcurrentForeground": 2,
+  "fallbackSubagent": "none",
+  "strictAgentFiles": true,
+  "backgroundByDefault": true,
+  "agentMentions": "direct",
+  "fleetView": true,
+  "widgetMode": "background",
+  "showModel": true
+}
