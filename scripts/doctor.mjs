@@ -71,6 +71,18 @@ try {
 }
 check("global instructions", actualAgents === expectedAgents, "AGENTS.md is missing or differs");
 
+const profileAgentsDir = path.join(root, "profile", "agents");
+for (const name of fs.readdirSync(profileAgentsDir).filter((entry) => entry.endsWith(".md")).sort()) {
+  const expected = fs.readFileSync(path.join(profileAgentsDir, name), "utf8");
+  let actual;
+  try {
+    actual = fs.readFileSync(path.join(agentDir, "agents", name), "utf8");
+  } catch {
+    actual = undefined;
+  }
+  check(`agent ${name}`, actual === expected, "agent override is missing or differs");
+}
+
 const skills = readJson(path.join(root, "profile", "skills.json")).sources.flatMap((entry) => entry.skills);
 for (const skill of skills) {
   const found = fs.existsSync(path.join(agentDir, "skills", skill))

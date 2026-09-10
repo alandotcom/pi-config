@@ -161,6 +161,8 @@ test("installer merges profile files, backs up existing values, and links Thermo
   );
   writeFileSync(path.join(agentDir, "subagents.json"), JSON.stringify({ customSetting: true }));
   writeFileSync(path.join(agentDir, "AGENTS.md"), "old instructions\n");
+  mkdirSync(path.join(agentDir, "agents"), { recursive: true });
+  writeFileSync(path.join(agentDir, "agents", "Explore.md"), "old Explore agent\n");
   mkdirSync(path.join(agentDir, "skills", "simplify"), { recursive: true });
   writeFileSync(path.join(agentDir, "skills", "simplify", "SKILL.md"), "old simplify\n");
 
@@ -210,6 +212,10 @@ test("installer merges profile files, backs up existing values, and links Thermo
   assert.equal(subagents.customSetting, true);
   assert.equal(subagents.maxConcurrent, 3);
   assert.equal(readFileSync(path.join(agentDir, "AGENTS.md"), "utf8"), readFileSync(path.join(projectRoot, "profile", "AGENTS.md"), "utf8"));
+  assert.equal(
+    readFileSync(path.join(agentDir, "agents", "Explore.md"), "utf8"),
+    readFileSync(path.join(projectRoot, "profile", "agents", "Explore.md"), "utf8"),
+  );
 
   const agentLink = path.join(agentDir, "agents", "thermo-nuclear-review-subagent.md");
   assert.equal(lstatSync(agentLink).isSymbolicLink(), true);
@@ -222,6 +228,10 @@ test("installer merges profile files, backs up existing values, and links Thermo
   const backups = readdirSync(path.join(agentDir, "backups"));
   assert.equal(backups.length, 1);
   assert.equal(readFileSync(path.join(agentDir, "backups", backups[0], "AGENTS.md"), "utf8"), "old instructions\n");
+  assert.equal(
+    readFileSync(path.join(agentDir, "backups", backups[0], "agents", "Explore.md"), "utf8"),
+    "old Explore agent\n",
+  );
   assert.equal(
     readFileSync(path.join(agentDir, "backups", backups[0], "skills", "simplify", "SKILL.md"), "utf8"),
     "old simplify\n",

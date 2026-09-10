@@ -286,6 +286,18 @@ export async function main(argv = process.argv.slice(2)) {
   mergeProfileFile(path.join(root, "profile", "subagents.json"), subagentsPath, agentDir, backupDir, options.dryRun);
   replaceWithFile(path.join(root, "profile", "AGENTS.md"), agentsPath, agentDir, backupDir, options.dryRun);
 
+  const profileAgentsDir = path.join(root, "profile", "agents");
+  const profileAgentFiles = fs.readdirSync(profileAgentsDir).filter((name) => name.endsWith(".md")).sort();
+  for (const name of profileAgentFiles) {
+    replaceWithFile(
+      path.join(profileAgentsDir, name),
+      path.join(agentDir, "agents", name),
+      agentDir,
+      backupDir,
+      options.dryRun,
+    );
+  }
+
   if (!options.skipSkills) {
     for (const entry of skillManifest.sources) {
       run(

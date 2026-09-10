@@ -43,7 +43,8 @@ The installer asks for confirmation, backs up existing files, and then:
 2. Merges [`profile/settings.json`](profile/settings.json) into the existing Pi settings.
 3. Merges the OpenRouter models in [`profile/models.json`](profile/models.json).
 4. Merges the `pi-subagents` defaults in [`profile/subagents.json`](profile/subagents.json).
-5. Copies [`profile/AGENTS.md`](profile/AGENTS.md) to the global Pi agent directory.
+5. Copies [`profile/AGENTS.md`](profile/AGENTS.md) and the agent overrides in
+   [`profile/agents/`](profile/agents/) to the global Pi agent directory.
 6. Installs the curated skills in [`profile/skills.json`](profile/skills.json) with the `skills` CLI.
 7. Installs and links the Pi resources from the external Thermos plugin.
 
@@ -109,6 +110,12 @@ This preserves upstream ownership, licenses, and update paths.
 
 The local `simplify` skill is part of this Pi package because it has Pi-specific dispatch and
 verification behavior.
+
+### Agent overrides
+
+The full profile pins the `Explore` subagent to `openrouter/openai/gpt-5.6-luna` while preserving
+its read-only tools and search prompt. The installer copies
+[`profile/agents/Explore.md`](profile/agents/Explore.md) to the global Pi agent directory.
 
 ### Thermos
 
