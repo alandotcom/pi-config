@@ -1,7 +1,7 @@
 {
-  "name": "pi-extensions",
-  "version": "0.1.0",
-  "description": "pi extensions: thread-scoped session recall, a question tool that does not block the turn, and subagents with a ported agent set.",
+  "name": "@alandotcom/pi-config",
+  "version": "0.2.0",
+  "description": "An opinionated, shareable Pi coding-agent profile with extensions, skills, and reproducible setup.",
   "type": "module",
   "license": "MIT",
   "keywords": [
@@ -11,29 +11,36 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test test/*.test.ts"
+    "test": "node --experimental-strip-types --test test/*.test.ts test/*.test.mjs",
+    "doctor": "node scripts/doctor.mjs"
   },
   "pi": {
     "extensions": [
       "./extensions"
     ],
-    "subagents": {
-      "agents": ["./agents"]
-    }
+    "skills": [
+      "./skills"
+    ]
   },
   "files": [
     "extensions",
-    "agents",
+    "skills",
+    "profile",
+    "scripts",
+    "docs",
     "README.md",
-    "AGENTS.md"
+    "LICENSE"
   ],
   "devDependencies": {
     "typebox": "^1.3.27"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/alandotcom/pi-extensions.git"
+    "url": "git+https://github.com/alandotcom/pi-config.git"
   },
-  "homepage": "https://github.com/alandotcom/pi-extensions#readme",
-  "bugs": "https://github.com/alandotcom/pi-extensions/issues"
+  "homepage": "https://github.com/alandotcom/pi-config#readme",
+  "bugs": "https://github.com/alandotcom/pi-config/issues",
+  "peerDependencies": {
+    "typebox": "*"
+  }
 }
