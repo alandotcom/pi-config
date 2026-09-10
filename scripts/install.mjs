@@ -7,7 +7,7 @@ import process from "node:process";
 import readline from "node:readline/promises";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mergeSettings, readJson, writeJson } from "./profile-lib.mjs";
+import { mergeModelConfig, mergeSettings, readJson, writeJson } from "./profile-lib.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -133,10 +133,10 @@ function readExistingJson(file) {
   }
 }
 
-function mergeProfileFile(profileFile, target, agentDir, backupDir, dryRun) {
+function mergeProfileFile(profileFile, target, agentDir, backupDir, dryRun, merge = mergeObjects) {
   const existing = readExistingJson(target);
   const profile = readJson(profileFile);
-  const merged = mergeObjects(existing, profile);
+  const merged = merge(existing, profile);
   backupPath(target, agentDir, backupDir, dryRun);
   console.log(`merge ${profileFile} -> ${target}`);
   if (!dryRun) writeJson(target, merged);
@@ -152,8 +152,30 @@ function mergeObjects(base, overlay) {
   return merged;
 }
 
-function ensureThermos(options, agentDir, backupDir) {
-  const manifest = readJson(path.join(root, "profile", "thermos.json"));
+function thermosSources(thermosRoot, manifest) {
+  return [
+    ...manifest.skills.map((name) => ({
+      source: path.join(thermosRoot, "skills", name),
+      kind: "directory",
+      targetParts: ["skills", name],
+    })),
+    ...manifest.agents.map((name) => ({
+      source: path.join(thermosRoot, "pi", "agents", `${name}.md`),
+      kind: "file",
+      targetParts: ["agents", `${name}.md`],
+    })),
+  ];
+}
+
+function validateThermosRoot(thermosRoot, manifest) {
+  for (const resource of thermosSources(thermosRoot, manifest)) {
+    const stat = fs.statSync(resource.source, { throwIfNoEntry: false });
+    const valid = resource.kind === "directory" ? stat?.isDirectory() : stat?.isFile();
+    if (!valid) throw new Error(`Thermos ${resource.kind} not found: ${resource.source}`);
+  }
+}
+
+function prepareThermos(options, manifest) {
   const dataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
   const checkout = path.join(dataHome, "pi-config", "plugins");
   let thermosRoot = options.thermosRoot;
@@ -162,29 +184,19 @@ function ensureThermos(options, agentDir, backupDir) {
     if (!pathExists(checkout)) {
       run("git", ["clone", "--depth", "1", "--filter=blob:none", "--sparse", manifest.repository, checkout], options.dryRun);
       run("git", ["-C", checkout, "sparse-checkout", "set", manifest.directory], options.dryRun);
-    } else {
-      run("git", ["-C", checkout, "pull", "--ff-only"], options.dryRun);
     }
     thermosRoot = path.join(checkout, manifest.directory);
   }
 
-  if (!options.dryRun && !fs.statSync(thermosRoot, { throwIfNoEntry: false })?.isDirectory()) {
-    throw new Error(`Thermos directory not found: ${thermosRoot}`);
-  }
+  if (!options.dryRun || pathExists(thermosRoot)) validateThermosRoot(thermosRoot, manifest);
+  return thermosRoot;
+}
 
-  for (const skill of manifest.skills) {
+function linkThermos(options, manifest, thermosRoot, agentDir, backupDir) {
+  for (const resource of thermosSources(thermosRoot, manifest)) {
     replaceWithLink(
-      path.join(thermosRoot, "skills", skill),
-      path.join(agentDir, "skills", skill),
-      agentDir,
-      backupDir,
-      options.dryRun,
-    );
-  }
-  for (const agent of manifest.agents) {
-    replaceWithLink(
-      path.join(thermosRoot, "pi", "agents", `${agent}.md`),
-      path.join(agentDir, "agents", `${agent}.md`),
+      resource.source,
+      path.join(agentDir, ...resource.targetParts),
       agentDir,
       backupDir,
       options.dryRun,
@@ -213,7 +225,31 @@ export async function main(argv = process.argv.slice(2)) {
   const agentDir = path.resolve(process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), ".pi", "agent"));
   const stamp = new Date().toISOString().replaceAll(":", "-");
   const backupDir = path.join(agentDir, "backups", `pi-config-${stamp}`);
+  const settingsPath = path.join(agentDir, "settings.json");
+  const modelsPath = path.join(agentDir, "models.json");
+  const subagentsPath = path.join(agentDir, "subagents.json");
+  const agentsPath = path.join(agentDir, "AGENTS.md");
+
   const packages = readJson(path.join(root, "profile", "packages.json")).packages;
+  const skillManifest = readJson(path.join(root, "profile", "skills.json"));
+  const thermosManifest = readJson(path.join(root, "profile", "thermos.json"));
+  readJson(path.join(root, "profile", "settings.json"));
+  readJson(path.join(root, "profile", "models.json"));
+  readJson(path.join(root, "profile", "subagents.json"));
+  if (!Array.isArray(packages) || !Array.isArray(skillManifest.sources)) {
+    throw new Error("Invalid package or skill profile manifest.");
+  }
+  if (!Array.isArray(thermosManifest.skills) || !Array.isArray(thermosManifest.agents)) {
+    throw new Error("Invalid Thermos profile manifest.");
+  }
+
+  // Validate existing configuration before confirmation or external commands.
+  readExistingJson(settingsPath);
+  readExistingJson(modelsPath);
+  readExistingJson(subagentsPath);
+  if (!options.skipThermos && options.thermosRoot) {
+    validateThermosRoot(options.thermosRoot, thermosManifest);
+  }
 
   console.log(`${options.dryRun ? "Dry run for" : "Installing"} Pi profile in ${agentDir}`);
   if (!(await confirmInstall(options, agentDir))) {
@@ -221,16 +257,7 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
 
-  const settingsPath = path.join(agentDir, "settings.json");
-  const modelsPath = path.join(agentDir, "models.json");
-  const subagentsPath = path.join(agentDir, "subagents.json");
-  const agentsPath = path.join(agentDir, "AGENTS.md");
-
-  // Validate every JSON file before package installation changes settings.
-  readExistingJson(settingsPath);
-  readExistingJson(modelsPath);
-  readExistingJson(subagentsPath);
-
+  const thermosRoot = options.skipThermos ? undefined : prepareThermos(options, thermosManifest);
   backupPath(settingsPath, agentDir, backupDir, options.dryRun);
 
   for (const source of packages) run("pi", ["install", source], options.dryRun);
@@ -248,12 +275,18 @@ export async function main(argv = process.argv.slice(2)) {
   console.log(`merge ${path.join(root, "profile", "settings.json")} -> ${settingsPath}`);
   if (!options.dryRun) writeJson(settingsPath, mergedSettings);
 
-  mergeProfileFile(path.join(root, "profile", "models.json"), modelsPath, agentDir, backupDir, options.dryRun);
+  mergeProfileFile(
+    path.join(root, "profile", "models.json"),
+    modelsPath,
+    agentDir,
+    backupDir,
+    options.dryRun,
+    mergeModelConfig,
+  );
   mergeProfileFile(path.join(root, "profile", "subagents.json"), subagentsPath, agentDir, backupDir, options.dryRun);
   replaceWithFile(path.join(root, "profile", "AGENTS.md"), agentsPath, agentDir, backupDir, options.dryRun);
 
   if (!options.skipSkills) {
-    const skillManifest = readJson(path.join(root, "profile", "skills.json"));
     for (const entry of skillManifest.sources) {
       run(
         "npx",
@@ -263,13 +296,24 @@ export async function main(argv = process.argv.slice(2)) {
     }
   }
 
-  if (!options.skipThermos) ensureThermos(options, agentDir, backupDir);
+  if (!options.skipThermos) {
+    linkThermos(options, thermosManifest, thermosRoot, agentDir, backupDir);
+  }
 
   console.log(options.dryRun ? "Dry run complete; no files were changed." : `Profile installed. Backups: ${backupDir}`);
   console.log("Run `pi /login` to configure provider credentials, then restart Pi.");
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+export function isDirectExecution(argvPath, moduleUrl) {
+  if (!argvPath) return false;
+  try {
+    return fs.realpathSync(path.resolve(argvPath)) === fs.realpathSync(fileURLToPath(moduleUrl));
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectExecution(process.argv[1], import.meta.url)) {
   main().catch((error) => {
     console.error(error.message);
     process.exitCode = 1;

@@ -4,7 +4,11 @@ import path from "node:path";
 export const LEGACY_PACKAGE = "git:github.com/alandotcom/pi-extensions";
 
 export function readJson(file) {
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+  return parseJsonConfig(fs.readFileSync(file, "utf8"));
+}
+
+export function parseJsonConfig(content) {
+  return JSON.parse(stripTrailingCommas(stripComments(content)));
 }
 
 export function deepMerge(base, overlay) {
@@ -45,6 +49,38 @@ export function mergePackageEntries(existing = [], desired = []) {
   return [...kept, ...structuredClone(desired)];
 }
 
+export function mergeModelConfig(existing, profile) {
+  const merged = deepMerge(existing, { ...profile, providers: {} });
+  merged.providers ??= {};
+
+  for (const [providerName, profileProvider] of Object.entries(profile.providers ?? {})) {
+    const existingProvider = existing.providers?.[providerName] ?? {};
+    const provider = deepMerge(existingProvider, { ...profileProvider, models: [] });
+    const profileModels = profileProvider.models ?? [];
+    const profileIds = new Set(profileModels.map((model) => model.id));
+    provider.models = [
+      ...(existingProvider.models ?? []).filter((model) => !profileIds.has(model.id)),
+      ...structuredClone(profileModels),
+    ];
+    merged.providers[providerName] = provider;
+  }
+
+  return merged;
+}
+
+export function isProfileSubset(actual, expected) {
+  if (Array.isArray(expected)) {
+    return Array.isArray(actual)
+      && expected.length === actual.length
+      && expected.every((value, index) => isProfileSubset(actual[index], value));
+  }
+  if (isObject(expected)) {
+    return isObject(actual)
+      && Object.entries(expected).every(([key, value]) => isProfileSubset(actual[key], value));
+  }
+  return Object.is(actual, expected);
+}
+
 export function mergeSettings(existing, profile, packages) {
   const merged = deepMerge(existing, profile);
   merged.packages = mergePackageEntries(existing.packages, packages);
@@ -65,6 +101,74 @@ export function writeJson(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
   fs.chmodSync(file, 0o600);
+}
+
+function stripComments(content) {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const next = content[index + 1];
+    if (inString) {
+      output += char;
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      output += char;
+      continue;
+    }
+    if (char === "/" && next === "/") {
+      while (index < content.length && content[index] !== "\n") index += 1;
+      output += "\n";
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      index += 2;
+      while (index < content.length && !(content[index] === "*" && content[index + 1] === "/")) {
+        output += content[index] === "\n" ? "\n" : " ";
+        index += 1;
+      }
+      index += 1;
+      continue;
+    }
+    output += char;
+  }
+  return output;
+}
+
+function stripTrailingCommas(content) {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    if (inString) {
+      output += char;
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      output += char;
+      continue;
+    }
+    if (char === ",") {
+      let next = index + 1;
+      while (/\s/.test(content[next] ?? "")) next += 1;
+      if (content[next] === "}" || content[next] === "]") continue;
+    }
+    output += char;
+  }
+  return output;
 }
 
 function isObject(value) {

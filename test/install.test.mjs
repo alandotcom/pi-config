@@ -8,6 +8,7 @@ import {
   readFileSync,
   readlinkSync,
   readdirSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -43,6 +44,26 @@ test("dry run reports actions without writing the target directory", () => {
   assert.deepEqual(readdirSync(home), []);
 });
 
+test("installer runs through a symlinked script path", () => {
+  const projectRoot = path.resolve(import.meta.dirname, "..");
+  const home = mkdtempSync(path.join(tmpdir(), "pi-config-symlink-"));
+  const scriptLink = path.join(home, "install.mjs");
+  symlinkSync(path.join(projectRoot, "scripts", "install.mjs"), scriptLink);
+
+  const result = spawnSync(
+    process.execPath,
+    [scriptLink, "--dry-run", "--skip-skills", "--skip-thermos"],
+    {
+      cwd: projectRoot,
+      env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: path.join(home, ".pi", "agent") },
+      encoding: "utf8",
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Dry run for Pi profile/);
+});
+
 test("installer validates existing JSON before invoking package installation", () => {
   const projectRoot = path.resolve(import.meta.dirname, "..");
   const home = mkdtempSync(path.join(tmpdir(), "pi-config-invalid-"));
@@ -51,7 +72,8 @@ test("installer validates existing JSON before invoking package installation", (
   const marker = path.join(home, "pi-was-called");
   mkdirSync(agentDir, { recursive: true });
   mkdirSync(fakeBin);
-  writeFileSync(path.join(agentDir, "settings.json"), "{invalid");
+  writeFileSync(path.join(agentDir, "settings.json"), "{}");
+  writeFileSync(path.join(agentDir, "models.json"), "{invalid");
   const fakePi = path.join(fakeBin, "pi");
   writeFileSync(fakePi, `#!/bin/sh\ntouch ${JSON.stringify(marker)}\n`);
   chmodSync(fakePi, 0o755);
@@ -76,6 +98,35 @@ test("installer validates existing JSON before invoking package installation", (
   assert.equal(existsSync(marker), false);
 });
 
+test("installer validates all Thermos resources before invoking Pi", () => {
+  const projectRoot = path.resolve(import.meta.dirname, "..");
+  const home = mkdtempSync(path.join(tmpdir(), "pi-config-thermos-invalid-"));
+  const agentDir = path.join(home, ".pi", "agent");
+  const fakeBin = path.join(home, "bin");
+  const marker = path.join(home, "pi-was-called");
+  const thermosRoot = path.join(home, "incomplete-thermos");
+  mkdirSync(agentDir, { recursive: true });
+  mkdirSync(fakeBin);
+  mkdirSync(thermosRoot);
+  const fakePi = path.join(fakeBin, "pi");
+  writeFileSync(fakePi, `#!/bin/sh\ntouch ${JSON.stringify(marker)}\n`);
+  chmodSync(fakePi, 0o755);
+
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/install.mjs", "--yes", "--skip-skills", "--thermos-root", thermosRoot],
+    {
+      cwd: projectRoot,
+      env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: agentDir, PATH: `${fakeBin}:${process.env.PATH}` },
+      encoding: "utf8",
+    },
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Thermos directory not found/);
+  assert.equal(existsSync(marker), false);
+});
+
 test("installer merges profile files, backs up existing values, and links Thermos", () => {
   const projectRoot = path.resolve(import.meta.dirname, "..");
   const home = mkdtempSync(path.join(tmpdir(), "pi-config-install-"));
@@ -93,7 +144,21 @@ test("installer merges profile files, backs up existing values, and links Thermo
       extensions: ["/Users/example/projects/pi-extensions/extensions/recall.ts"],
     }),
   );
-  writeFileSync(path.join(agentDir, "models.json"), JSON.stringify({ providers: { local: { models: [] } } }));
+  writeFileSync(
+    path.join(agentDir, "models.json"),
+    `{
+      // Pi accepts comments and trailing commas.
+      "providers": {
+        "local": { "models": [] },
+        "openrouter": {
+          "models": [
+            { "id": "custom/model", "name": "Keep me" },
+            { "id": "openai/gpt-5.6-sol", "name": "Replace me" },
+          ],
+        },
+      },
+    }`,
+  );
   writeFileSync(path.join(agentDir, "subagents.json"), JSON.stringify({ customSetting: true }));
   writeFileSync(path.join(agentDir, "AGENTS.md"), "old instructions\n");
   mkdirSync(path.join(agentDir, "skills", "simplify"), { recursive: true });
@@ -138,6 +203,9 @@ test("installer merges profile files, backs up existing values, and links Thermo
   const models = JSON.parse(readFileSync(path.join(agentDir, "models.json"), "utf8"));
   assert.ok(models.providers.local);
   assert.ok(models.providers.openrouter);
+  assert.deepEqual(models.providers.openrouter.models[0], { id: "custom/model", name: "Keep me" });
+  assert.equal(models.providers.openrouter.models.filter((model) => model.id === "openai/gpt-5.6-sol").length, 1);
+  assert.equal(models.providers.openrouter.models.find((model) => model.id === "openai/gpt-5.6-sol").name, "gpt-5.6-sol");
   const subagents = JSON.parse(readFileSync(path.join(agentDir, "subagents.json"), "utf8"));
   assert.equal(subagents.customSetting, true);
   assert.equal(subagents.maxConcurrent, 3);
@@ -158,4 +226,15 @@ test("installer merges profile files, backs up existing values, and links Thermo
     readFileSync(path.join(agentDir, "backups", backups[0], "skills", "simplify", "SKILL.md"), "utf8"),
     "old simplify\n",
   );
+
+  const skillManifest = JSON.parse(readFileSync(path.join(projectRoot, "profile", "skills.json"), "utf8"));
+  for (const skill of skillManifest.sources.flatMap((entry) => entry.skills)) {
+    mkdirSync(path.join(agentDir, "skills", skill), { recursive: true });
+  }
+  const doctor = spawnSync(process.execPath, ["scripts/doctor.mjs"], {
+    cwd: projectRoot,
+    env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: agentDir },
+    encoding: "utf8",
+  });
+  assert.equal(doctor.status, 0, doctor.stdout + doctor.stderr);
 });

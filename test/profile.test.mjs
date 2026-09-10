@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   deepMerge,
+  isProfileSubset,
+  mergeModelConfig,
   mergePackageEntries,
   mergeSettings,
   packageIdentity,
+  parseJsonConfig,
 } from "../scripts/profile-lib.mjs";
 
 test("deepMerge preserves unrelated nested settings", () => {
@@ -15,6 +18,56 @@ test("deepMerge preserves unrelated nested settings", () => {
     ),
     { terminal: { showTerminalProgress: false, custom: "keep" }, untouched: 1 },
   );
+});
+
+test("parseJsonConfig accepts Pi-style comments and trailing commas", () => {
+  assert.deepEqual(
+    parseJsonConfig(`{
+      // Keep comments outside strings.
+      "url": "https://example.com/path//value",
+      "items": [1, 2,],
+      /* block comment */
+    }`),
+    { url: "https://example.com/path//value", items: [1, 2] },
+  );
+  assert.throws(() => parseJsonConfig("{invalid"));
+});
+
+test("mergeModelConfig preserves unrelated models and updates profile-owned IDs", () => {
+  const existing = {
+    providers: {
+      openrouter: {
+        apiKey: "keep",
+        models: [
+          { id: "custom/model", name: "Custom" },
+          { id: "profile/model", name: "Old name" },
+        ],
+      },
+      local: { models: [{ id: "local/model" }] },
+    },
+  };
+  const profile = {
+    providers: {
+      openrouter: {
+        baseUrl: "https://openrouter.ai/api/v1",
+        models: [{ id: "profile/model", name: "Current name" }],
+      },
+    },
+  };
+
+  const merged = mergeModelConfig(existing, profile);
+  assert.deepEqual(merged.providers.openrouter.models, [
+    { id: "custom/model", name: "Custom" },
+    { id: "profile/model", name: "Current name" },
+  ]);
+  assert.equal(merged.providers.openrouter.apiKey, "keep");
+  assert.deepEqual(merged.providers.local.models, [{ id: "local/model" }]);
+  assert.deepEqual(mergeModelConfig(merged, profile), merged);
+});
+
+test("isProfileSubset compares profile-owned nested values", () => {
+  assert.equal(isProfileSubset({ one: 1, nested: { two: 2, extra: 3 } }, { nested: { two: 2 } }), true);
+  assert.equal(isProfileSubset({ nested: { two: 3 } }, { nested: { two: 2 } }), false);
 });
 
 test("packageIdentity ignores npm versions and git refs", () => {
