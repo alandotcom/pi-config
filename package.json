@@ -1,6 +1,6 @@
 {
   "name": "@alandotcom/pi-config",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "An opinionated, shareable Pi coding-agent profile with extensions, skills, and reproducible setup.",
   "type": "module",
   "license": "MIT",
