@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const LEGACY_PACKAGE = "git:github.com/alandotcom/pi-extensions";
+export const REPLACED_PACKAGES = [
+  "git:github.com/alandotcom/pi-extensions",
+  "npm:@nicknisi/pi-btw",
+];
 
 export function readJson(file) {
   return parseJsonConfig(fs.readFileSync(file, "utf8"));
@@ -41,10 +44,10 @@ export function packageIdentity(entry) {
 
 export function mergePackageEntries(existing = [], desired = []) {
   const desiredIds = new Set(desired.map(packageIdentity).filter(Boolean));
-  const legacyId = packageIdentity(LEGACY_PACKAGE);
+  const replacedIds = new Set(REPLACED_PACKAGES.map(packageIdentity));
   const kept = existing.filter((entry) => {
     const identity = packageIdentity(entry);
-    return identity && identity !== legacyId && !desiredIds.has(identity);
+    return identity && !replacedIds.has(identity) && !desiredIds.has(identity);
   });
   return [...kept, ...structuredClone(desired)];
 }

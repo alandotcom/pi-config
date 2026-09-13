@@ -1,6 +1,6 @@
 {
   "name": "@alandotcom/pi-config",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "An opinionated, shareable Pi coding-agent profile with extensions, skills, and reproducible setup.",
   "type": "module",
   "license": "MIT",
@@ -16,7 +16,10 @@
   },
   "pi": {
     "extensions": [
-      "./extensions"
+      "./extensions/ask-async.ts",
+      "./extensions/recall.ts",
+      "./extensions/btw/index.ts",
+      "./extensions/btw/session-fork.ts"
     ],
     "skills": [
       "./skills"
@@ -32,6 +35,7 @@
     "LICENSE"
   ],
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "typebox": "^1.3.27"
   },
   "repository": {
@@ -41,6 +45,9 @@
   "homepage": "https://github.com/alandotcom/pi-config#readme",
   "bugs": "https://github.com/alandotcom/pi-config/issues",
   "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
     "typebox": "*"
   }
 }

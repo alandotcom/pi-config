@@ -3,7 +3,7 @@
 An opinionated, shareable configuration for the [Pi coding agent](https://pi.dev). The repository is
 both a normal Pi package and an optional full agent profile.
 
-The normal package adds two extensions and one skill without changing global instructions or model
+The normal package adds four extensions and one skill without changing global instructions or model
 preferences. The full profile reproduces the broader setup: instructions, models, settings,
 third-party packages and skills, and the external Thermos review plugin.
 
@@ -21,6 +21,8 @@ This installs:
 
 - `recall`, for searching earlier messages in the current thread
 - `ask_async`, for asking a question without blocking the current turn
+- `/btw`, for side-channel conversations that stay out of the main agent context
+- multiplexer-aware session forking, which opens forks in Herdr tabs or tmux splits
 - `simplify`, a change-focused code cleanup skill
 
 Pi packages do not install global instructions, model definitions, or application settings. Use the
@@ -49,9 +51,9 @@ The installer asks for confirmation, backs up existing files, and then:
 7. Installs and links the Pi resources from the external Thermos plugin.
 
 Existing JSON keys outside the profile are preserved. Profile-owned keys take the values in this
-repository. During migration, the installer removes the old `alandotcom/pi-extensions` package
-entry, absolute paths to its extensions, and a top-level `skills/simplify` copy that would shadow the
-package version. Every removed path is backed up first.
+repository. During migration, the installer removes the old `alandotcom/pi-extensions` and
+`@nicknisi/pi-btw` package entries, absolute paths to the former config extensions, and a top-level
+`skills/simplify` copy that would shadow the package version. Every removed path is backed up first.
 
 Backups are written under:
 
@@ -95,7 +97,6 @@ Package versions are pinned in [`profile/packages.json`](profile/packages.json).
 - `@ff-labs/pi-fff`
 - `pi-exa`
 - `@upstash/context7-pi`
-- `@nicknisi/pi-btw`
 - `@tintinweb/pi-subagents`
 - this repository
 
@@ -158,6 +159,23 @@ The user's answer arrives later as a steered message.
 
 If the prompt is dismissed, no answer is sent. In print and JSON modes, where interactive prompts
 are unavailable, the tool tells the model to continue with a stated assumption.
+
+### `/btw`
+
+`/btw <question>` opens a side-channel conversation using the current model or the optional model in
+`~/.pi/agent/configs/btw.json`. The thread stays outside the main agent context unless it is promoted.
+Forking a `/btw` thread opens the new Pi session in a Herdr tab or tmux split when either multiplexer
+owns the current terminal. Outside a multiplexer it uses the existing Ghostty or clipboard fallback.
+
+This extension is adapted from [`@nicknisi/pi-btw`](https://github.com/nicknisi/pi-extensions/tree/main/packages/btw).
+See [`docs/third-party/pi-btw.md`](docs/third-party/pi-btw.md) for attribution and license terms.
+
+### Multiplexer-aware session forks
+
+Pi's `/fork` and `/clone` actions normally replace the session in the current process. Inside Herdr,
+the extension leaves the current session in place and opens the new session in a focused tab in the
+same workspace. Inside tmux, it opens the new session in a split. The selected `/fork` message is
+restored into the new Pi process's editor. Outside Herdr and tmux, Pi retains its normal behavior.
 
 ### `simplify`
 
