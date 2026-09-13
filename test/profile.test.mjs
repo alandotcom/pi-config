@@ -81,6 +81,7 @@ test("mergePackageEntries replaces matching and legacy package sources", () => {
     [
       "npm:keep-me@1.0.0",
       "npm:replace-me@1.0.0",
+      "npm:@nicknisi/pi-btw@0.2.2",
       { source: "git:github.com/alandotcom/pi-extensions", extensions: ["extensions/recall.ts"] },
     ],
     ["npm:replace-me@2.0.0", "git:github.com/alandotcom/pi-config"],
