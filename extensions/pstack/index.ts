@@ -7,6 +7,7 @@ import { Type, type Static } from "typebox";
 
 const levels = ["full", "focused", "off"] as const;
 type Level = typeof levels[number];
+const defaultLevel: Level = "off";
 const levelEntry = "pstack.level";
 const tasksEntry = "pstack.tasks";
 const skillPath = fileURLToPath(new URL("../../skills/pstack/SKILL.md", import.meta.url));
@@ -36,14 +37,14 @@ function savedConfig(): Saved {
 	try {
 		raw = readFileSync(path, "utf8");
 	} catch (error) {
-		if (isRecord(error) && error.code === "ENOENT") return { path, data: {}, level: "full" };
+		if (isRecord(error) && error.code === "ENOENT") return { path, data: {}, level: defaultLevel };
 		return { path, error: `Cannot read ${path}.` };
 	}
 	try {
 		const data: unknown = JSON.parse(raw);
 		if (!isRecord(data)) throw new Error("Expected a JSON object.");
 		if (data.defaultLevel !== undefined && !isLevel(data.defaultLevel)) throw new Error("defaultLevel must be full, focused, or off.");
-		return { path, raw, data, level: (data.defaultLevel as Level | undefined) ?? "full" };
+		return { path, raw, data, level: (data.defaultLevel as Level | undefined) ?? defaultLevel };
 	} catch (error) {
 		return { path, error: `Invalid ${path}: ${error instanceof SyntaxError ? "malformed JSON" : String(error)}. File left untouched.` };
 	}
@@ -98,6 +99,10 @@ function readTasks(branch: ReturnType<ExtensionContext["sessionManager"]["getBra
 
 function summary(tasks: Task[]): string {
 	return `${tasks.filter((task) => task.status === "done").length}/${tasks.length} done, ${tasks.filter((task) => task.status === "skipped").length} skipped, ${tasks.filter((task) => task.status === "in-progress").length} active`;
+}
+
+function checklist(tasks: Task[]): string {
+	return [`pstack checklist: ${summary(tasks)}`, ...(tasks.length ? tasks.map((task, index) => `${index + 1}. [${task.status}] ${task.title}${task.reason ? ` — Reason: ${task.reason}` : ""}`) : ["No tasks on this branch."])].join("\n");
 }
 
 function accessibleTools(pi: ExtensionAPI) {
@@ -174,9 +179,9 @@ function display({ choice, caps, leaf, effective, tasks }: Snapshot): string {
 		`Configured parent choice: ${choice.level ?? "ERROR"} (${choice.source}). Saved default: ${choice.saved.level ?? "ERROR"}; config: ${choice.saved.path}.`,
 		`Delegation tools: ${caps.names.join(", ") || "none"}. Agent types: ${caps.types?.join(", ") || "not advertised"}.`,
 		prerequisites(caps),
-		`Checklist: ${summary(tasks)}. Read or replace through pstack_tasks; available even when off.`,
+		`Checklist: ${summary(tasks)}. View with /pstack; available even when off.`,
 		...choice.errors.map((error) => `ERROR: ${error}`),
-		"Precedence: session > CLI > saved default > full. Reset follows the saved default and ignores CLI. A valid session choice can override invalid lower-priority defaults without repairing them. Level changes do not cancel agents or grant permissions.",
+		"Precedence: session > CLI > saved default > off. Reset follows the saved default and ignores CLI. A valid session choice can override invalid lower-priority defaults without repairing them. Level changes do not cancel agents or grant permissions.",
 	].join("\n");
 }
 
@@ -184,7 +189,7 @@ function updateStatus(pi: ExtensionAPI, ctx: ExtensionContext, state?: Snapshot)
 	if (ctx.mode !== "tui") return;
 	try {
 		const { choice, leaf, effective, tasks } = state ?? snapshot(pi, ctx);
-		ctx.ui.setStatus("pstack", `pstack ${effective.level ?? (leaf ? "leaf" : "ERROR")}${choice.errors.length ? " !" : ""} · ${summary(tasks)}`);
+		ctx.ui.setStatus("pstack", `pstack ${effective.level ?? (leaf ? "leaf" : "ERROR")}${choice.errors.length ? " !" : ""} · tasks: /pstack · ${summary(tasks)}`);
 	} catch {
 		ctx.ui.setStatus("pstack", "pstack ERROR");
 	}
@@ -219,19 +224,23 @@ export default function pstack(pi: ExtensionAPI) {
 	pi.on("resources_discover", () => ({ skillPaths: [commandSkillsPath] }));
 	pi.registerFlag("pstack-level", { type: "string", description: "pstack level: full, focused, or off; session choice takes precedence" });
 
-	pi.registerCommand("pstack", {
-		description: "pstack status | full | focused | off | reset | save <level>",
-		async handler(args, ctx) {
+	const command = {
+		description: "Show the checklist; status | full | focused | off | reset | save <level>",
+		async handler(args: string, ctx: ExtensionContext) {
 			try {
+				if (!args.trim()) {
+					report(pi, ctx, checklist(readTasks(ctx.sessionManager.getBranch())));
+					return;
+				}
 				const parts = args.trim().split(/\s+/);
-				const action = parts[0] || "status";
+				const action = parts[0];
 				if (action === "save" && parts.length === 2 && isLevel(parts[1])) report(pi, ctx, saveDefault(parts[1]));
 				else if (parts.length === 1 && isLevel(action)) pi.appendEntry(levelEntry, { choice: action });
 				else if (parts.length === 1 && action === "reset") {
 					const saved = savedConfig();
 					if (saved.error) throw new Error(saved.error);
 					pi.appendEntry(levelEntry, { choice: "default" });
-				} else if (parts.length !== 1 || action !== "status") throw new Error("Usage: /pstack status | full | focused | off | reset | save <full|focused|off>.");
+				} else if (parts.length !== 1 || action !== "status") throw new Error("Usage: /pstack (checklist) | status | full | focused | off | reset | save <full|focused|off>.");
 				const state = snapshot(pi, ctx);
 				report(pi, ctx, display(state));
 				updateStatus(pi, ctx, state);
@@ -239,6 +248,18 @@ export default function pstack(pi: ExtensionAPI) {
 				report(pi, ctx, `pstack ERROR: ${String(error)}`, true);
 				updateStatus(pi, ctx);
 			}
+		},
+	};
+	pi.registerCommand("pstack", command);
+	pi.registerCommand("poteto-mode", {
+		description: "Enable pstack for this session: /poteto-mode [full|focused|off]",
+		async handler(args, ctx) {
+			const level = args.trim() || "full";
+			if (!isLevel(level)) {
+				report(pi, ctx, "Usage: /poteto-mode [full|focused|off].", true);
+				return;
+			}
+			await command.handler(level, ctx);
 		},
 	});
 
@@ -261,7 +282,7 @@ export default function pstack(pi: ExtensionAPI) {
 			} else if (params.action === "read" && !("tasks" in params)) tasks = readTasks(ctx.sessionManager.getBranch());
 			else throw new Error("pstack_tasks requires action read, or replace with tasks.");
 			updateStatus(pi, ctx);
-			const text = [`pstack checklist: ${summary(tasks)}`, ...tasks.map((task, index) => `${index + 1}. [${task.status}] ${task.title}${task.reason ? ` — Reason: ${task.reason}` : ""}`)].join("\n");
+			const text = checklist(tasks);
 			return { content: [{ type: "text", text }], details: { tasks }, structuredContent: { tasks } };
 		},
 	});
@@ -290,7 +311,7 @@ export default function pstack(pi: ExtensionAPI) {
 				`pstack-level: ${level ?? "unassigned"}`,
 				"pstack-role: leaf",
 				`Workflow reference: ${skillPath}.`,
-				"Execute only the assigned scope at the parent-provided level from the inherited pstack section or explicit pstack-level brief. Parent owns design, delegation, review, and integration gates. Do not restart Feature, architect, or recursive delegation, and do not restore the global full default. If level is unassigned, request the parent's level when needed; a standalone parent lacks Agent prerequisites. Preserve safety and repository rules.",
+				"Execute only the assigned scope at the parent-provided level from the inherited pstack section or explicit pstack-level brief. Parent owns design, delegation, review, and integration gates. Do not restart Feature, architect, or recursive delegation, and do not restore the global default. If level is unassigned, request the parent's level when needed; a standalone parent lacks Agent prerequisites. Preserve safety and repository rules.",
 			].join("\n");
 		} else {
 			const { choice, caps } = state;

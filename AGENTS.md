@@ -38,7 +38,8 @@ Each declared extension has an explicit entrypoint. Keep helpers behind an entry
 listing a directory whose files Pi might interpret as independent extensions.
 
 Pstack adds only its own prompt section, commands, and session checklist. TintinWeb remains the
-only delegation engine. Full is the default; focused and off are explicit user choices. Levels
+only delegation engine. Off is the built-in default; `/poteto-mode` enables full for the session,
+and `/poteto-mode focused` enables focused. Explicit saved defaults remain effective. Levels
 change process, never authority. State follows the active session branch. Saved preferences retain
 unrelated keys and get a backup before replacement. Extension loading never writes global state.
 Pstack worker and reviewer instructions are bundled task briefs sent to TintinWeb's general-purpose

@@ -65,6 +65,7 @@ function host(options: { manager?: SessionManager; flag?: unknown; tools?: any[]
 		setFlag: (value: unknown) => { flag = value; },
 		setPrompt: (value: string) => { prompt = value; },
 		async command(args = "status") { await commands.get("pstack").handler(args, ctx); return messages.at(-1)!; },
+		async poteto(args = "") { await commands.get("poteto-mode").handler(args, ctx); return messages.at(-1)!; },
 		async tasks(params: unknown = { action: "read" }) { return registered.get("pstack_tasks").execute("id", params, undefined, undefined, ctx); },
 		async event(name: string, payload: any = {}) { return events.get(name)(payload, ctx); },
 		async start(sections: Record<string, string> = {}, brief = "") {
@@ -78,13 +79,16 @@ function host(options: { manager?: SessionManager; flag?: unknown; tools?: any[]
 
 // Authoring gate: each case protects a new command/config/session/prompt/tool contract.
 // Existing extensions do not cover these failures. No production test-only exports or hooks are used.
-test("defaults to full, scopes prompt policy, and supports status in headless and TUI hosts without writing user config", async () => {
+test("defaults to off, enables full with poteto-mode, and scopes prompt policy without writing user config", async () => {
 	assert.equal(getAgentDir(), root);
 	const h = host();
 	const status = await h.command();
-	assert.match(status, /effective level: full; source: built-in default/);
-	assert.match(status, /Saved default: full/);
+	assert.match(status, /effective level: off; source: built-in default/);
+	assert.match(status, /Saved default: off/);
 	assert.match(status, /Full delegation available/);
+	assert.equal(readdirSync(root).includes("configs"), false);
+	assert.deepEqual((await h.start({ unrelated: "other section", pstack: "stale" })).sections, { unrelated: "other section" });
+	assert.match(await h.poteto(), /effective level: full; source: session/);
 	assert.equal(readdirSync(root).includes("configs"), false);
 	const options = await h.start({ unrelated: "other section" });
 	assert.equal(options.sections.unrelated, "other section");
@@ -96,7 +100,34 @@ test("defaults to full, scopes prompt policy, and supports status in headless an
 	const ui = host({ hasUI: true });
 	await ui.command("focused");
 	await ui.tasks({ action: "replace", tasks: [{ title: "Implement", status: "in-progress" }] });
-	assert.match(ui.statuses.at(-1)!, /pstack focused.*1 active/);
+	assert.match(ui.statuses.at(-1)!, /pstack focused.*tasks: \/pstack.*1 active/);
+});
+
+test("models-only config stays off and poteto-mode overrides CLI while preserving saved preferences and tasks", async () => {
+	const raw = '{"models":{"feature, refactoring":"inherit-parent"}}\n';
+	config(raw);
+	assert.match(await host().command(), /effective level: off; source: saved default/);
+	assert.equal((await host().start()).sections.pstack, undefined);
+	const h = host({ flag: "off", hasUI: true });
+	const tasks = [{ title: "Keep assignment", status: "in-progress" }];
+	await h.tasks({ action: "replace", tasks });
+	assert.match(await h.poteto("focused"), /effective level: focused; source: session/);
+	assert.match(h.statuses.at(-1)!, /pstack focused.*1 active/);
+	for (const invalid of ["fast", "full extra", "status", "save off"]) {
+		assert.match(await h.poteto(invalid), /Usage: \/poteto-mode/);
+		assert.match(await h.command(), /effective level: focused/);
+	}
+	assert.match(await h.poteto("off"), /effective level: off/);
+	assert.deepEqual((await h.tasks()).structuredContent.tasks, tasks);
+	assert.match(await h.poteto(), /effective level: full/);
+	assert.deepEqual((await h.tasks()).structuredContent.tasks, tasks);
+	assert.equal(readFileSync(join(root, "configs/pstack.json"), "utf8"), raw);
+	assert.deepEqual(readdirSync(join(root, "configs")), ["pstack.json"]);
+	assert.match(await host().command(), /effective level: off/);
+	config('{"defaultLevel":"focused"}');
+	assert.match(await host().command(), /effective level: focused/);
+	config('{"defaultLevel":"full"}');
+	assert.match(await host().command(), /effective level: full/);
 });
 
 test("session commands override CLI, save preserves unrelated keys with exact backup, and reset tracks saved default ignoring CLI", async () => {
@@ -137,6 +168,8 @@ test("malformed or invalid config fails honestly and remains untouched; explicit
 		assert.match(await h.command("save focused"), /pstack ERROR/);
 		assert.equal(readFileSync(join(root, "configs/pstack.json"), "utf8"), raw);
 		assert.deepEqual(readdirSync(join(root, "configs")), ["pstack.json"]);
+		await h.poteto();
+		assert.match(await h.command(), /effective level: full; source: session/);
 		await h.command("off");
 		assert.match(await h.command(), /effective level: off; source: session/);
 		assert.match(await h.command(), /ERROR: Invalid/);
@@ -175,6 +208,25 @@ test("off removes only workflow section and keeps checklist available; invalid c
 	assert.match(await h.command(), /effective level: off; source: session/);
 });
 
+test("bare pstack displays the complete active checklist in UI and headless modes without changing state", async () => {
+	for (const hasUI of [true, false]) {
+		const h = host({ hasUI });
+		assert.match(await h.command(""), /No tasks on this branch/);
+		const tasks = [{ title: "Ground", status: "done" }, { title: "Build", status: "in-progress" }, { title: "Extra", status: "skipped", reason: "Not approved" }, ...Array.from({ length: 61 }, (_, index) => ({ title: `Remaining ${index}`, status: "pending" }))];
+		await h.tasks({ action: "replace", tasks });
+		const leaf = h.manager.getLeafId();
+		const text = await h.command("   ");
+		assert.match(text, /1\/64 done, 1 skipped, 1 active/);
+		assert.match(text, /1\. \[done\] Ground/);
+		assert.match(text, /3\. \[skipped\] Extra — Reason: Not approved/);
+		assert.match(text, /64\. \[pending\] Remaining 60/);
+		assert.equal(h.manager.getLeafId(), leaf);
+		assert.deepEqual((await h.tasks()).structuredContent.tasks, tasks);
+		assert.match(await h.command("tasks"), /Usage:/);
+		assert.match(await h.command(), /effective level: off/);
+	}
+});
+
 test("level and checklist follow real active branches, disk reload, fork, and fresh sessions", async () => {
 	const manager = SessionManager.create(root, join(root, "sessions"));
 	const initial = manager.appendMessage({ role: "user", content: "Begin", timestamp: 1 });
@@ -183,8 +235,9 @@ test("level and checklist follow real active branches, disk reload, fork, and fr
 	await h.tasks({ action: "replace", tasks: [{ title: "Branch A", status: "in-progress" }] });
 	const branchA = manager.getLeafId()!;
 	manager.branch(initial);
-	assert.match(await h.command(), /effective level: full/);
+	assert.match(await h.command(), /effective level: off/);
 	assert.deepEqual((await h.tasks()).structuredContent.tasks, []);
+	assert.match(await h.command(""), /No tasks on this branch/);
 	await h.command("off");
 	await h.tasks({ action: "replace", tasks: [{ title: "Branch B", status: "skipped", reason: "User deferred" }] });
 	const branchB = manager.getLeafId()!;
@@ -192,6 +245,7 @@ test("level and checklist follow real active branches, disk reload, fork, and fr
 	// State must be correct without relying on a session_tree notification.
 	assert.match(await h.command(), /effective level: focused/);
 	assert.deepEqual((await h.tasks()).structuredContent.tasks, [{ title: "Branch A", status: "in-progress" }]);
+	assert.match(await h.command(""), /\[in-progress\] Branch A/);
 	await h.event("session_tree");
 	assert.match((await h.start()).sections.pstack, /pstack-level: focused/);
 	manager.branch(branchB);
@@ -206,7 +260,7 @@ test("level and checklist follow real active branches, disk reload, fork, and fr
 	assert.equal((await reload.tasks()).structuredContent.tasks[0].title, "Branch A");
 	reload.setManager(SessionManager.inMemory(root));
 	await reload.event("session_start", { reason: "new" });
-	assert.match(await reload.command(), /effective level: full/);
+	assert.match(await reload.command(), /effective level: off/);
 	assert.deepEqual((await reload.tasks()).structuredContent.tasks, []);
 });
 
@@ -232,7 +286,7 @@ test("full works with general-purpose alone and reports unavailable delegation w
 		{ ...agentTool(), parameters: Type.Object({ subagent_type: Type.String() }) },
 	]) {
 		const h = host({ tools: [tool] });
-		const status = await h.command();
+		const status = await h.poteto();
 		assert.match(status, /effective level: full/);
 		const section = (await h.start()).sections.pstack;
 		if (status.includes("Full prerequisites blocked")) {
@@ -243,7 +297,7 @@ test("full works with general-purpose alone and reports unavailable delegation w
 			assert.match(section, /no profile role installation is required/);
 		}
 	}
-	const unavailable = host({ tools: [{ ...agentTool(), exposure: "hidden" }] });
+	const unavailable = host({ tools: [{ ...agentTool(), exposure: "hidden" }], flag: "full" });
 	assert.match(await unavailable.command(), /Agent is unavailable/);
 	assert.match(await unavailable.command(), /effective level: full/);
 	for (const level of ["focused", "off"]) {
@@ -307,7 +361,7 @@ test("checklist replacement protects skipped rationale, single active task, size
 		await assert.rejects(h.tasks(params), /pstack_tasks|Task|At most/);
 		assert.deepEqual((await h.tasks()).structuredContent.tasks, kept);
 	}
-	assert.match(await h.command(), /effective level: full/);
+	assert.match(await h.command(), /effective level: off/);
 	const maximum = Array.from({ length: 64 }, (_, index) => ({ title: `${index}`.padEnd(300, "界"), status: "skipped", reason: "理".repeat(500) }));
 	const result = await h.tasks({ action: "replace", tasks: maximum });
 	assert.deepEqual(result.structuredContent.tasks, maximum);
@@ -330,7 +384,11 @@ test("actual Pi host handles commands without model calls and composes structure
 	const { session } = await createAgentSession({ cwd: root, agentDir: root, settingsManager, resourceLoader: resources, sessionManager: manager });
 	try {
 		await session.bindExtensions({ mode: "json" });
-		await session.prompt("/pstack focused");
+		await session.prompt("/pstack status");
+		assert.ok(manager.getBranch().some((entry) => entry.type === "custom_message" && String(entry.content).includes("effective level: off")));
+		await session.prompt("/poteto-mode");
+		assert.ok(manager.getBranch().some((entry) => entry.type === "custom_message" && String(entry.content).includes("effective level: full")));
+		await session.prompt("/poteto-mode focused");
 		assert.ok(manager.getBranch().some((entry) => entry.type === "custom_message" && String(entry.content).includes("effective level: focused")));
 		let result = await session.extensionRunner!.emitBeforeAgentStart("Check", undefined, { cwd: root, appendSystemPrompt: "Existing appended prompt", sections: { other: "Existing section" } });
 		assert.match(result.systemPromptOptions.sections.pstack, /^pstack-level: focused/m);
@@ -341,7 +399,9 @@ test("actual Pi host handles commands without model calls and composes structure
 		const tasks = [{ title: "Host checklist", status: "in-progress" }];
 		await tool.execute("test", { action: "replace", tasks }, undefined, undefined, ctx);
 		assert.deepEqual((await tool.execute("read", { action: "read" }, undefined, undefined, ctx)).structuredContent, { tasks });
-		await session.prompt("/pstack off");
+		await session.prompt("/pstack");
+		assert.ok(manager.getBranch().some((entry) => entry.type === "custom_message" && String(entry.content).includes("[in-progress] Host checklist")));
+		await session.prompt("/poteto-mode off");
 		result = await session.extensionRunner!.emitBeforeAgentStart("Check", undefined, { cwd: root, sections: { pstack: "Old workflow", other: "Existing section" } });
 		assert.deepEqual(result.systemPromptOptions.sections, { other: "Existing section" });
 	} finally { session.dispose(); }

@@ -23,7 +23,7 @@ This installs:
 - `ask_async`, for asking a question without blocking the current turn
 - `/btw`, for side-channel conversations that stay out of the main agent context
 - multiplexer-aware session forking, which opens forks in Herdr tabs or tmux splits
-- `/pstack` and `pstack_tasks`, for adjustable workflow intensity and a session checklist
+- `/poteto-mode`, `/pstack`, and `pstack_tasks`, for opt-in workflow intensity and a session checklist
 - `pstack`, an attributed Pi adaptation of Cursor's engineering workflows
 - `simplify`, a change-focused code cleanup skill
 
@@ -227,13 +227,17 @@ restored into the new Pi process's editor. Outside Herdr and tmux, Pi retains it
 
 ### `pstack`
 
-Full is the default for meaningful engineering work. It uses task-matched playbooks, grounding,
-at least two competing designs for boundary-crossing code, delegated Feature implementation,
-independent review, and verification at the real behavior boundary. Focused retains scoped work,
-independent review, and verification while making additional exploration risk-based. Off removes
-pstack-added process; repository rules and explicit user requests remain active.
+Pstack is off by default. Run `/poteto-mode` to enable full mode for the current session, or
+`/poteto-mode focused` for a lighter workflow. Full uses task-matched playbooks, grounding, at least
+two competing designs for boundary-crossing code, delegated Feature implementation, independent
+review, and verification at the real behavior boundary. Focused retains scoped work, independent
+review, and verification while making additional exploration risk-based. Off uses the ordinary
+project workflow; repository rules and explicit user requests remain active.
 
 ```text
+/poteto-mode
+/poteto-mode focused
+/pstack
 /pstack status
 /pstack full
 /pstack focused
@@ -243,13 +247,16 @@ pstack-added process; repository rules and explicit user requests remain active.
 ```
 
 A session choice takes precedence over `--pstack-level <full|focused|off>`, then the saved default,
-then full. Reset follows the saved default and ignores the CLI choice. Commands do not cancel active
-agents. Status reports prerequisites, configuration errors, and checklist progress.
+then off. Existing saved preferences and session choices remain effective after an update. To
+restore opt-in behavior if you previously saved another default, run `/pstack save off`; use
+`/pstack off` to disable the current session too. Reset follows the saved default and ignores the
+CLI choice. `/poteto-mode` sets the session choice without changing the saved default. Commands do
+not cancel active agents. Status reports prerequisites, configuration errors, and checklist progress.
 
 Saved preferences live in `$PI_CODING_AGENT_DIR/configs/pstack.json`:
 
 ```json
-{ "defaultLevel": "full" }
+{ "defaultLevel": "off" }
 ```
 
 Saving backs up an existing file and preserves unrelated keys. Malformed configuration is reported
@@ -258,9 +265,12 @@ setting without repairing that file. An optional `models` role map is read by th
 selecting verified available models; it is not a second runtime router. See the
 [model setup reference](skills/pstack/references/upstream/setup-pstack/SKILL.md).
 
-`pstack_tasks` reads or replaces the active session branch's checklist. Items have a title and a
-status of pending, in-progress, done, or skipped. Skipped requires a reason, at most one item is
-in-progress, and a list holds at most 64 items. Checklist access stays available when off.
+Run `/pstack` to view the complete checklist, including each task's status and skip reason.
+The footer shows progress counts and a `tasks: /pstack` hint. `/pstack status` shows configuration
+details. `pstack_tasks` lets the agent read or replace the active
+session branch's checklist. Items have a title and a status of pending, in-progress, done, or
+skipped. Skipped requires a reason, at most one item is in-progress, and a list holds at most 64
+items. Checklist access stays available when off.
 
 Type `/skill:pstack-` in Pi to find the individual workflows. All 49 adapted skills are exposed
 with this prefix, including the principle references. They are explicit commands; automatic
@@ -284,7 +294,7 @@ cache interface` remains supported. Pstack-only extension loading also discovers
 
 Delegated briefs must include an exact standalone marker
 such as `pstack-level: focused` and identify already-completed parent gates. Leaf agents preserve
-that assignment rather than restoring the machine's full default.
+that assignment rather than restoring the machine's default.
 
 Intensity changes process, not permissions, models, or budgets. Missing delegation remains a gap.
 The adaptation does not provide Cursor cloud execution or restart durability. Scheduling requires

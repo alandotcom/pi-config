@@ -26,7 +26,9 @@ The port translates Cursor Task dispatch into TintinWeb Agent calls using its
 general-purpose agent. Bundled worker and reviewer task briefs retain repository
 instructions and require leaf execution. No separate agent files are installed. The parent owns synthesis, integration, external writes, and independent
 review. Existing specialist model choices are preserved. The native controller
-owns session level and checklist state; it is not a second delegation engine.
+owns session level and checklist state; it is not a second delegation engine. It
+starts off unless an explicit preference selects another level. `/poteto-mode`
+enables full for the session, and bare `/pstack` displays the checklist.
 
 Platform-heavy references are adapted at their owners:
 

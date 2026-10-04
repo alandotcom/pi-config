@@ -19,7 +19,7 @@ Example shape, with inheritance rather than provider-specific defaults:
 
 ```json
 {
-  "defaultLevel": "full",
+  "defaultLevel": "off",
   "models": {
     "feature, refactoring": "inherit-parent",
     "architect runners": ["inherit-parent", "inherit-parent"],

@@ -22,7 +22,7 @@ Optional role choices live under `models` in `<agent-dir>/configs/pstack.json`. 
 
 ## Checklist and evidence
 
-Use `pstack_tasks` to read or replace the session checklist. Each item has a title and status `pending`, `in-progress`, `done`, or `skipped`; skipped requires a reason. Preserve the matched playbook's steps. Keep at most one in-progress item and split lists over 64 entries into phase checklists. The throughput checkpoint and decision trail are evidence, not extra implementation artifacts to commit automatically.
+The user views the complete session checklist with `/pstack`. Use `pstack_tasks` to read or replace the session checklist. Each item has a title and status `pending`, `in-progress`, `done`, or `skipped`; skipped requires a reason. Preserve the matched playbook's steps. Keep at most one in-progress item and split lists over 64 entries into phase checklists. The throughput checkpoint and decision trail are evidence, not extra implementation artifacts to commit automatically.
 
 Use installed tools such as `read`, `grep`, `find`, `ffgrep`, `fffind`, and `bash` according to their real schemas. Reach MCP tools through the host's tool discovery or codemode. Use purpose-built service APIs for external dashboards. Use the project's real browser QA tooling for its application. `control-ui` and `control-cli` are optional external skills, not bundled Pi capabilities.
 

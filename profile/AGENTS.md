@@ -34,9 +34,11 @@ or direction change, name the file, quote the rule, and explain its effect.
 ## Pstack workflow
 
 When the session exposes an active `pstack` level, read the installed `pstack`
-skill for meaningful work. Full is the default; the user can choose focused or
-off with `/pstack`. Its level-specific investigation, design exploration,
-delegated implementation, and independent review take precedence over the
+skill for meaningful work. Off is the built-in default. `/poteto-mode` enables
+full for the current session; `/poteto-mode focused` enables focused. `/pstack`
+also changes levels. Explicit saved defaults remain effective. The active level's
+investigation, design exploration, delegated implementation, and independent
+review take precedence over the
 ordinary delegation and review defaults below. Off uses those ordinary defaults.
 The user can save a default with `/pstack save <level>`.
 

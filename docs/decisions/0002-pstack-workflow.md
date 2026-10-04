@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. The built-in default is superseded by [ADR-003](0003-pstack-opt-in.md).
 
 ## Date
 

@@ -5,7 +5,7 @@ description: "Run the Pi-adapted pstack workflow. Use when the active pstack lev
 
 # Pstack for Pi
 
-Use the effective level in the session's `pstack` prompt section. `/pstack full`, `/pstack focused`, and `/pstack off` change the current session. `/pstack save <level>` changes the user default. `/pstack status` reports the current level and prerequisites. Full is the default. A level controls engineering process; it grants no additional authority.
+Use the effective level in the session's `pstack` prompt section. An absent section means ordinary off-mode work unless the user explicitly selected a workflow. Off is the built-in default; saved preferences remain effective. `/poteto-mode` enables full for the current session; `/poteto-mode focused` enables focused. `/pstack full`, `/pstack focused`, and `/pstack off` also change the current session. `/pstack save <level>` changes the user default. `/pstack status` reports the current level and prerequisites; `/pstack` displays the complete checklist. A level controls engineering process; it grants no additional authority.
 
 Read [the Pi execution contract](references/pi-runtime.md) before following an upstream reference. Read the matching playbook and each principle that changes a decision. The adapted [Poteto Mode](references/upstream/poteto-mode/SKILL.md) indexes those principles and playbooks. Resolve names such as `architect`, `how`, and `tdd` within `references/upstream/<name>/SKILL.md`; use these files directly, rather than a similarly named installed skill. Read a linked reference relative to its containing file. Namespaced `pstack-…` command skills expose each workflow in Pi's command picker. Their instructions point to these same references.
 
