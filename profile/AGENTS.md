@@ -31,9 +31,29 @@ changes architecture, acceptance criteria, data, or external side effects.
 If an instruction causes a pause, permission request, unfinished authorized work,
 or direction change, name the file, quote the rule, and explain its effect.
 
+## Pstack workflow
+
+When the session exposes an active `pstack` level, read the installed `pstack`
+skill for meaningful work. Full is the default; the user can choose focused or
+off with `/pstack`. Its level-specific investigation, design exploration,
+delegated implementation, and independent review take precedence over the
+ordinary delegation and review defaults below. Off uses those ordinary defaults.
+The user can save a default with `/pstack save <level>`.
+
+Pstack changes process only. Preserve repository scope, branch ownership,
+production protections, required checks and review lanes, and external-action
+approval boundaries. Keep the user's approved branch checked out and preserve
+existing changes. A generic autonomous request does not authorize branch changes,
+destructive Git operations, unrelated work, deployments, or data mutation.
+
+Use TintinWeb's `general-purpose` agent with the pstack skill's bundled worker or
+reviewer brief. Include the active level and parent-owned gates. These task briefs
+retain repository instructions and require leaf execution without delegation.
+Existing specialists retain their roles and model pins.
+
 ## Delegation
 
-Work locally by default, including substantial tasks with tightly coupled steps.
+Outside an active pstack workflow, work locally by default, including substantial tasks with tightly coupled steps.
 Delegate when the user requests it, independent review addresses a concrete risk,
 or a bounded workstream lets the parent make useful progress concurrently.
 Task size or an available specialist alone does not justify delegation.
@@ -87,7 +107,13 @@ execution-mode change.
 
 ### Review
 
-Use independent review for a concrete correctness, security, data-integrity, or
+In active full or focused pstack work, independently review every code change
+before declaring completion. Follow the repository's required workflow and keep
+the reviewer separate from the implementation owner. Full additionally applies
+its design and adversarial-review triggers. React and Next.js reviewers load
+both `vercel-react-best-practices` and `vercel-composition-patterns`.
+
+Outside active pstack work, use independent review for a concrete correctness, security, data-integrity, or
 architectural risk, or when the user requests it. Routine low-risk edits use local
 verification. The reviewer must differ from the implementation owner. Use one
 review cycle by default, with local remediation and targeted checks when practical.

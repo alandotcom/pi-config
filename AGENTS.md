@@ -1,7 +1,7 @@
 # Working in this repository
 
 `pi-config` is a shareable Pi package and an optional full agent profile. The native package ships
-`recall`, `ask_async`, and the local `simplify` skill. The explicit installer applies the global
+`recall`, `ask_async`, the pstack workflow controller, and the local skills. The explicit installer applies the global
 instructions, settings, models, external skills, packages, and Thermos integration under `profile/`.
 
 ## Distribution boundaries
@@ -16,6 +16,11 @@ user whose home directory and checkout locations differ from the maintainer's.
 
 Third-party skills and Thermos remain external dependencies. Record their sources and selected
 resources in profile manifests instead of copying their implementation into this repository.
+Pstack is the approved exception: maintain its attributed Pi adaptation under `skills/pstack`,
+record the audited upstream commit and license, and review each upstream update before replacing
+adapted content. Namespaced command skills under `skills/pstack/commands` point to the adapted
+references. Expose these through the package manifest and extension resource discovery so both
+package installation and pstack-only test sessions retain direct invocation.
 
 The profile installer must preserve unrelated settings, back up every existing file or link it
 replaces, support `--dry-run`, and fail rather than overwrite malformed JSON.
@@ -29,8 +34,16 @@ bounded at 6,000 characters.
 `ask_async` returns as soon as the question is displayed. Awaiting the answer would defeat the tool's
 purpose. In headless modes it must return a plain message rather than wait for unavailable UI.
 
-Each extension is self-contained. Pi loads every TypeScript or JavaScript file below the declared
-extension directory, so do not place a shared helper there unless it is also a valid extension.
+Each declared extension has an explicit entrypoint. Keep helpers behind an entrypoint rather than
+listing a directory whose files Pi might interpret as independent extensions.
+
+Pstack adds only its own prompt section, commands, and session checklist. TintinWeb remains the
+only delegation engine. Full is the default; focused and off are explicit user choices. Levels
+change process, never authority. State follows the active session branch. Saved preferences retain
+unrelated keys and get a backup before replacement. Extension loading never writes global state.
+Pstack worker and reviewer instructions are bundled task briefs sent to TintinWeb's general-purpose
+agent. Pstack requires no separately installed agent definitions. Other agent overrides remain
+optional profile resources installed only through the explicit installer.
 
 ## Verification
 

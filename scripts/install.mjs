@@ -7,7 +7,7 @@ import process from "node:process";
 import readline from "node:readline/promises";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mergeModelConfig, mergeSettings, readJson, writeJson } from "./profile-lib.mjs";
+import { mergeModelConfig, mergeSettings, readJson, selectProfilePackages, writeJson } from "./profile-lib.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -17,6 +17,7 @@ export function parseArgs(argv) {
     yes: false,
     skipSkills: false,
     skipThermos: false,
+    localPackage: false,
     thermosRoot: process.env.PI_CONFIG_THERMOS_ROOT,
   };
 
@@ -26,6 +27,7 @@ export function parseArgs(argv) {
     else if (arg === "--yes" || arg === "-y") options.yes = true;
     else if (arg === "--skip-skills") options.skipSkills = true;
     else if (arg === "--skip-thermos") options.skipThermos = true;
+    else if (arg === "--local-package") options.localPackage = true;
     else if (arg === "--thermos-root") options.thermosRoot = argv[++index];
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`Unknown option: ${arg}`);
@@ -46,6 +48,7 @@ Options:
   -y, --yes              Skip the confirmation prompt
   --skip-skills          Do not install the curated third-party skills
   --skip-thermos         Do not install or link the Thermos plugin
+  --local-package        Load this checkout instead of the GitHub package
   --thermos-root <path>  Use an existing Thermos checkout
   -h, --help             Show this help`);
 }
@@ -60,6 +63,15 @@ function run(command, args, dryRun) {
 
 function shellQuote(value) {
   return /^[A-Za-z0-9_./:@=-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function requireSupportedPi() {
+  const result = spawnSync("pi", ["--version"], { encoding: "utf8" });
+  const version = result.stdout?.trim().match(/^(\d+)\.(\d+)\.(\d+)$/)?.slice(1).map(Number);
+  if (result.error || result.status !== 0 || !version
+    || version[0] < 1 || version[0] === 1 && version[1] === 0 && version[2] < 1) {
+    throw new Error("The full profile requires Pi 1.0.1 or newer for structured workflow prompts and the bundled GPT-6 model catalog.");
+  }
 }
 
 function pathExists(target) {
@@ -230,7 +242,9 @@ export async function main(argv = process.argv.slice(2)) {
   const subagentsPath = path.join(agentDir, "subagents.json");
   const agentsPath = path.join(agentDir, "AGENTS.md");
 
-  const packages = readJson(path.join(root, "profile", "packages.json")).packages;
+  const declaredPackages = readJson(path.join(root, "profile", "packages.json")).packages;
+  if (!Array.isArray(declaredPackages)) throw new Error("Invalid package profile manifest.");
+  const packages = selectProfilePackages(declaredPackages, options.localPackage ? root : undefined);
   const skillManifest = readJson(path.join(root, "profile", "skills.json"));
   const thermosManifest = readJson(path.join(root, "profile", "thermos.json"));
   readJson(path.join(root, "profile", "settings.json"));
@@ -256,6 +270,7 @@ export async function main(argv = process.argv.slice(2)) {
     console.log("Cancelled.");
     return;
   }
+  requireSupportedPi();
 
   const thermosRoot = options.skipThermos ? undefined : prepareThermos(options, thermosManifest);
   backupPath(settingsPath, agentDir, backupDir, options.dryRun);
@@ -271,7 +286,7 @@ export async function main(argv = process.argv.slice(2)) {
 
   const existingSettings = readExistingJson(settingsPath);
   const profileSettings = readJson(path.join(root, "profile", "settings.json"));
-  const mergedSettings = mergeSettings(existingSettings, profileSettings, packages);
+  const mergedSettings = mergeSettings(existingSettings, profileSettings, packages, root);
   console.log(`merge ${path.join(root, "profile", "settings.json")} -> ${settingsPath}`);
   if (!options.dryRun) writeJson(settingsPath, mergedSettings);
 

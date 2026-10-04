@@ -42,19 +42,21 @@ const profileSettings = readJson(path.join(root, "profile", "settings.json"));
 check("profile settings", isProfileSubset(settings, profileSettings), "profile-owned settings differ");
 
 const desiredPackages = readJson(path.join(root, "profile", "packages.json")).packages;
-const installedIds = new Set((settings?.packages ?? []).map(packageIdentity));
+const installedIds = new Set((settings?.packages ?? []).map((entry) => packageIdentity(entry, root)));
 for (const source of desiredPackages) {
-  check(`package ${source}`, installedIds.has(packageIdentity(source)), "missing from settings.json");
+  check(`package ${source}`, installedIds.has(packageIdentity(source, root)), "missing from settings.json");
 }
 
 const models = safeJson(path.join(agentDir, "models.json"));
 const profileModels = readJson(path.join(root, "profile", "models.json"));
-const expectedProvider = { ...profileModels.providers.openrouter, models: [] };
-const actualProvider = { ...models?.providers?.openrouter, models: [] };
-check("OpenRouter provider settings", isProfileSubset(actualProvider, expectedProvider), "provider settings differ");
-for (const model of profileModels.providers.openrouter.models) {
-  const actual = models?.providers?.openrouter?.models?.find((candidate) => candidate.id === model.id);
-  check(`model ${model.id}`, isProfileSubset(actual, model), "model is missing or differs");
+for (const [providerName, provider] of Object.entries(profileModels.providers)) {
+  const expectedProvider = { ...provider, models: [] };
+  const actualProvider = { ...models?.providers?.[providerName], models: [] };
+  check(`${providerName} provider settings`, isProfileSubset(actualProvider, expectedProvider), "provider settings differ");
+  for (const model of provider.models ?? []) {
+    const actual = models?.providers?.[providerName]?.models?.find((candidate) => candidate.id === model.id);
+    check(`model ${model.id}`, isProfileSubset(actual, model), "model is missing or differs");
+  }
 }
 
 const subagents = safeJson(path.join(agentDir, "subagents.json"));

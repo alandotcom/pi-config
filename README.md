@@ -3,7 +3,7 @@
 An opinionated, shareable configuration for the [Pi coding agent](https://pi.dev). The repository is
 both a normal Pi package and an optional full agent profile.
 
-The normal package adds four extensions and one skill without changing global instructions or model
+The normal package adds five extensions, pstack's namespaced skill commands, and simplify without changing global instructions or model
 preferences. The full profile reproduces the broader setup: instructions, models, settings,
 third-party packages and skills, and the external Thermos review plugin.
 
@@ -23,7 +23,30 @@ This installs:
 - `ask_async`, for asking a question without blocking the current turn
 - `/btw`, for side-channel conversations that stay out of the main agent context
 - multiplexer-aware session forking, which opens forks in Herdr tabs or tmux splits
+- `/pstack` and `pstack_tasks`, for adjustable workflow intensity and a session checklist
+- `pstack`, an attributed Pi adaptation of Cursor's engineering workflows
 - `simplify`, a change-focused code cleanup skill
+
+Requires Pi 1.0.1 or newer for structured prompt sections. Full pstack delegation uses TintinWeb's
+`general-purpose` agent. Install TintinWeb if it is not already present:
+
+```sh
+pi install npm:@tintinweb/pi-subagents@0.19.0
+```
+
+Worker and reviewer instructions ship inside this package. No profile installer or separate agent
+files are required. Missing delegation is reported rather than replaced by another engine.
+
+If this package is already installed from GitHub, test only the local pstack resources for one
+session so the two copies do not register the same tools:
+
+```sh
+pi -e ~/projects/pi-config/extensions/pstack/index.ts \
+  --skill ~/projects/pi-config/skills/pstack
+```
+
+If no copy of pi-config is installed, `pi -e ~/projects/pi-config` loads the whole local package.
+Use your own checkout path. Both commands leave package settings and the profile unchanged.
 
 Pi packages do not install global instructions, model definitions, or application settings. Use the
 full profile for those.
@@ -43,7 +66,7 @@ The installer asks for confirmation, backs up existing files, and then:
 
 1. Installs the packages in [`profile/packages.json`](profile/packages.json).
 2. Merges [`profile/settings.json`](profile/settings.json) into the existing Pi settings.
-3. Merges the OpenRouter models in [`profile/models.json`](profile/models.json).
+3. Merges the Azure OpenAI provider in [`profile/models.json`](profile/models.json).
 4. Merges the `pi-subagents` defaults in [`profile/subagents.json`](profile/subagents.json).
 5. Copies [`profile/AGENTS.md`](profile/AGENTS.md) and the agent overrides in
    [`profile/agents/`](profile/agents/) to the global Pi agent directory.
@@ -70,6 +93,7 @@ $PI_CODING_AGENT_DIR/backups/pi-config-<timestamp>/
 -y, --yes              Skip the confirmation prompt
 --skip-skills          Do not install third-party skills
 --skip-thermos         Do not install or link Thermos
+--local-package        Load this checkout instead of the GitHub package
 --thermos-root <path>  Use an existing Thermos checkout
 ```
 
@@ -79,6 +103,20 @@ For example, use an existing plugin checkout without cloning another copy:
 node scripts/install.mjs --thermos-root ~/projects/plugins/thermos
 ```
 
+For local development, preview and explicitly apply the profile using this checkout as the package:
+
+```sh
+node scripts/install.mjs --dry-run --local-package
+node scripts/install.mjs --local-package
+```
+
+The local option replaces this repository's GitHub package entry, including pinned tags, with the
+checkout path while preserving unrelated packages. Pulling or editing the checkout changes its
+loaded native resources; restart or reload Pi as appropriate. Normal GitHub installations keep their
+existing source behavior.
+
+The full profile uses Fountain Bio's Azure OpenAI endpoint and GPT-6 deployments. It requires
+Pi 1.0.1 or newer and credentials for that resource.
 After installation, configure provider credentials interactively and restart Pi:
 
 ```sh
@@ -105,18 +143,23 @@ commit if you need immutable installations.
 
 ### Skills
 
-Third-party skills stay in their upstream repositories. The installer records the selected skill
+Most third-party skills stay in their upstream repositories. The installer records the selected skill
 names and invokes the [`skills`](https://skills.sh/) CLI rather than copying upstream code here.
 This preserves upstream ownership, licenses, and update paths.
 
 The local `simplify` skill is part of this Pi package because it has Pi-specific dispatch and
-verification behavior.
+verification behavior. Pstack is an approved attributed adaptation with a pinned upstream revision,
+MIT license, and [reviewed update procedure](docs/third-party/pstack.md).
 
 ### Agent overrides
 
-The full profile pins `Explore` to `openrouter/openai/gpt-5.6-luna`. It also provides `review` as a
-read-only reviewer pinned to `openrouter/openai/gpt-5.6-sol` with high thinking. The installer copies
+The full profile pins `Explore` to `azure-openai-responses/gpt-6-luna`. It also provides `review` as a
+read-only reviewer pinned to `azure-openai-responses/gpt-6-sol` with high thinking. The installer copies
 the definitions under [`profile/agents/`](profile/agents/) to the global Pi agent directory.
+
+Pstack uses `general-purpose` with bundled worker or reviewer instructions in each task prompt.
+It creates no agent overrides. The parent owns design exploration, integration, independent review,
+and external actions. Existing specialist model pins remain intact.
 
 ### Thermos
 
@@ -176,6 +219,71 @@ Pi's `/fork` and `/clone` actions normally replace the session in the current pr
 the extension leaves the current session in place and opens the new session in a focused tab in the
 same workspace. Inside tmux, it opens the new session in a split. The selected `/fork` message is
 restored into the new Pi process's editor. Outside Herdr and tmux, Pi retains its normal behavior.
+
+### `pstack`
+
+Full is the default for meaningful engineering work. It uses task-matched playbooks, grounding,
+at least two competing designs for boundary-crossing code, delegated Feature implementation,
+independent review, and verification at the real behavior boundary. Focused retains scoped work,
+independent review, and verification while making additional exploration risk-based. Off removes
+pstack-added process; repository rules and explicit user requests remain active.
+
+```text
+/pstack status
+/pstack full
+/pstack focused
+/pstack off
+/pstack reset
+/pstack save focused
+```
+
+A session choice takes precedence over `--pstack-level <full|focused|off>`, then the saved default,
+then full. Reset follows the saved default and ignores the CLI choice. Commands do not cancel active
+agents. Status reports prerequisites, configuration errors, and checklist progress.
+
+Saved preferences live in `$PI_CODING_AGENT_DIR/configs/pstack.json`:
+
+```json
+{ "defaultLevel": "full" }
+```
+
+Saving backs up an existing file and preserves unrelated keys. Malformed configuration is reported
+and never overwritten. A valid explicit session choice can override an invalid lower-priority
+setting without repairing that file. An optional `models` role map is read by the agent when
+selecting verified available models; it is not a second runtime router. See the
+[model setup reference](skills/pstack/references/upstream/setup-pstack/SKILL.md).
+
+`pstack_tasks` reads or replaces the active session branch's checklist. Items have a title and a
+status of pending, in-progress, done, or skipped. Skipped requires a reason, at most one item is
+in-progress, and a list holds at most 64 items. Checklist access stays available when off.
+
+Type `/skill:pstack-` in Pi to find the individual workflows. All 49 adapted skills are exposed
+with this prefix, including the principle references. They are explicit commands; automatic
+full/focused routing still uses the pstack entrypoint.
+
+| Command | Purpose |
+| --- | --- |
+| `/skill:pstack-architect` | Compare designs before implementation |
+| `/skill:pstack-arena` | Compare competing artifacts |
+| `/skill:pstack-how` | Explain architecture and runtime flow |
+| `/skill:pstack-why` | Investigate rationale and history |
+| `/skill:pstack-interrogate` | Run adversarial review |
+| `/skill:pstack-reflect` | Extract lessons from the current task |
+| `/skill:pstack-swarm` | Delegate independent workstreams |
+| `/skill:pstack-tdd` | Run test-first development |
+| `/skill:pstack-setup` | Configure model choices |
+
+For example, `/skill:pstack-architect the cache interface` runs that workflow even when the session
+is off, without changing your level or saved default. The router form `/skill:pstack architect the
+cache interface` remains supported. Pstack-only extension loading also discovers these commands.
+
+Delegated briefs must include an exact standalone marker
+such as `pstack-level: focused` and identify already-completed parent gates. Leaf agents preserve
+that assignment rather than restoring the machine's full default.
+
+Intensity changes process, not permissions, models, or budgets. Missing delegation remains a gap.
+The adaptation does not provide Cursor cloud execution or restart durability. Scheduling requires
+an explicit user request. See [ADR-002](docs/decisions/0002-pstack-workflow.md).
 
 ### `simplify`
 

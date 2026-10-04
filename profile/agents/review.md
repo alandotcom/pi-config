@@ -2,7 +2,7 @@
 name: review
 description: Use after implementation for an independent, read-only review of correctness, regressions, maintainability, and missing tests.
 tools: read, grep, find, ls, bash
-model: openrouter/openai/gpt-5.6-sol
+model: azure-openai-responses/gpt-6-sol
 thinking: high
 ---
 

@@ -19,10 +19,12 @@
       "./extensions/ask-async.ts",
       "./extensions/recall.ts",
       "./extensions/btw/index.ts",
-      "./extensions/btw/session-fork.ts"
+      "./extensions/btw/session-fork.ts",
+      "./extensions/pstack/index.ts"
     ],
     "skills": [
-      "./skills"
+      "./skills",
+      "./skills/pstack/commands"
     ]
   },
   "files": [
@@ -35,7 +37,7 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@earendil-works/pi-coding-agent": "1.0.1",
     "typebox": "^1.3.27"
   },
   "repository": {
@@ -46,7 +48,7 @@
   "bugs": "https://github.com/alandotcom/pi-config/issues",
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
-    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-coding-agent": ">=1.0.1",
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
   }

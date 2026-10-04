@@ -30,9 +30,19 @@ export function packageSource(entry) {
   return typeof entry === "string" ? entry : entry?.source;
 }
 
-export function packageIdentity(entry) {
+const profilePackage = "git:github.com/alandotcom/pi-config";
+
+export function selectProfilePackages(packages, localRoot) {
+  return packages.map((entry) => {
+    if (!localRoot || packageIdentity(entry) !== profilePackage) return entry;
+    return typeof entry === "string" ? localRoot : { ...entry, source: localRoot };
+  });
+}
+
+export function packageIdentity(entry, localRoot) {
   const source = packageSource(entry);
   if (!source) return undefined;
+  if (localRoot && source === localRoot) return profilePackage;
   if (source.startsWith("npm:")) {
     const spec = source.slice(4);
     const separator = spec.lastIndexOf("@");
@@ -42,11 +52,11 @@ export function packageIdentity(entry) {
   return source;
 }
 
-export function mergePackageEntries(existing = [], desired = []) {
-  const desiredIds = new Set(desired.map(packageIdentity).filter(Boolean));
-  const replacedIds = new Set(REPLACED_PACKAGES.map(packageIdentity));
+export function mergePackageEntries(existing = [], desired = [], localRoot) {
+  const desiredIds = new Set(desired.map((entry) => packageIdentity(entry, localRoot)).filter(Boolean));
+  const replacedIds = new Set(REPLACED_PACKAGES.map((entry) => packageIdentity(entry)));
   const kept = existing.filter((entry) => {
-    const identity = packageIdentity(entry);
+    const identity = packageIdentity(entry, localRoot);
     return identity && !replacedIds.has(identity) && !desiredIds.has(identity);
   });
   return [...kept, ...structuredClone(desired)];
@@ -84,9 +94,9 @@ export function isProfileSubset(actual, expected) {
   return Object.is(actual, expected);
 }
 
-export function mergeSettings(existing, profile, packages) {
+export function mergeSettings(existing, profile, packages, localRoot) {
   const merged = deepMerge(existing, profile);
-  merged.packages = mergePackageEntries(existing.packages, packages);
+  merged.packages = mergePackageEntries(existing.packages, packages, localRoot);
 
   if (Array.isArray(existing.extensions)) {
     const extensions = existing.extensions.filter((entry) => {
