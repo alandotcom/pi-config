@@ -9,7 +9,8 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { getCurrentTools, getToolStateChanges } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 
 const DEFAULT_LIMIT = 10;
@@ -302,12 +303,13 @@ function render(hits: Hit[], totalMatches: number, sessions: number): { text: st
 }
 
 export default function recall(pi: ExtensionAPI) {
-	pi.registerTool({
+	const tool: ToolDefinition = {
 		name: "recall",
 		label: "Recall",
+		defaultActive: false,
 		description:
 			"Search earlier messages in this thread, including messages that dropped out of context when the session compacted. " +
-			"Use it before re-reading files or deciding something this thread may already have decided, and on the first turn after a compaction. " +
+			"Available only after compaction on the active branch. Use it when retained context lacks a relevant earlier detail. " +
 			"Only this thread is searched, so an empty result means nothing matched here, not that the subject never came up. " +
 			"Queries may contain multiple words; ranking favors a literal phrase, then relevant term coverage, then recency. " +
 			"Literal identifiers, paths, and punctuation are also supported.",
@@ -317,6 +319,9 @@ export default function recall(pi: ExtensionAPI) {
 		}),
 		executionMode: "concurrent",
 		async execute(_toolCallId: string, params: { query: string; limit?: number }, _signal: unknown, _onUpdate: unknown, ctx: ExtensionContext) {
+			if (!ctx.sessionManager.getBranch().some((entry) => entry.type === "compaction")) {
+				throw new Error("recall is unavailable until the active branch has been compacted.");
+			}
 			const query = typeof params?.query === "string" ? params.query.trim() : "";
 			if (query.length === 0) return { content: [{ type: "text" as const, text: "recall needs a non-empty query." }], details: { matches: 0, shown: 0 } };
 
@@ -337,5 +342,39 @@ export default function recall(pi: ExtensionAPI) {
 				details: { matches: totalMatches, shown: rendered.shown, sessions: sessions.length },
 			};
 		},
+	};
+	pi.registerTool({ ...tool, exposure: "hidden" });
+	let enabled = false;
+
+	function syncAvailability(_event: unknown, ctx: ExtensionContext): void {
+		const compacted = ctx.sessionManager.getBranch().some((entry) => entry.type === "compaction");
+		if (compacted !== enabled) {
+			pi.registerTool({ ...tool, exposure: compacted ? "direct" : "hidden" });
+			enabled = compacted;
+		}
+		const active = pi.getActiveTools();
+		if (active.includes(tool.name) !== compacted) {
+			const others = active.filter((name) => name !== tool.name);
+			pi.setActiveTools(compacted ? [...others, tool.name] : others);
+		}
+	}
+
+	pi.on("session_start", syncAvailability);
+	pi.on("session_compact", syncAvailability);
+	pi.on("session_tree", syncAvailability);
+	pi.on("before_agent_start", syncAvailability);
+	pi.on("turn_start", syncAvailability);
+	pi.on("context_with_system", (event, ctx) => {
+		syncAvailability(event, ctx);
+		const active = pi.getActiveTools().includes(tool.name);
+		const declared = getCurrentTools(event.messages).filter((entry) => entry.name === tool.name);
+		const changes = getToolStateChanges(declared, active ? (declared.length > 0 ? declared : [tool]) : []);
+		if (changes.toolsAdded.length === 0 && changes.toolsRemoved.length === 0) return;
+		return { messages: [...event.messages, {
+			role: "system" as const,
+			content: "",
+			...changes,
+			timestamp: Date.now(),
+		}] };
 	});
 }

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { createAgentSession, DefaultResourceLoader, SessionManager, SettingsManager, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createAssistantMessageEventStream, getCurrentSystemMessage } from "@earendil-works/pi-ai";
 import recall from "../extensions/recall.ts";
 
 type Entry = Record<string, unknown>;
@@ -19,10 +21,11 @@ function message(id: string, text: string, timestamp: string, parentId: string |
 
 async function invoke({ entries, file, header, query = "sqlite fts", limit = 10 }: { entries: Entry[]; file?: string; header?: Entry; query?: string; limit?: number }) {
 	let tool: any;
-	recall({ registerTool(value: any) { tool = value; } } as any);
+	recall({ registerTool(value: any) { tool = value; }, on() {} } as any);
 	const context = {
 		sessionManager: {
 			getEntries: () => entries,
+			getBranch: () => [{ type: "compaction" }, ...entries],
 			getSessionFile: () => file,
 			getHeader: () => header,
 		},
@@ -40,6 +43,136 @@ async function sessionFile(path: string, id: string, entries: Entry[], parentSes
 function resultText(result: any): string {
 	return result.content[0].text;
 }
+
+async function withHost(run: (session: Awaited<ReturnType<typeof createAgentSession>>["session"], manager: SessionManager) => Promise<void>, compacted = false, extensions: ((pi: ExtensionAPI) => void)[] = []) {
+	const directory = await mkdtemp(join(tmpdir(), "recall-host-"));
+	const settingsManager = SettingsManager.inMemory({ packages: [] });
+	const resources = new DefaultResourceLoader({
+		cwd: directory, agentDir: directory, settingsManager, noExtensions: true, noSkills: true, noContextFiles: true,
+		extensionFactories: [recall, ...extensions],
+	});
+	try {
+		await resources.reload();
+		const manager = SessionManager.inMemory(directory);
+		const first = manager.appendMessage({ role: "user", content: "history-probe", timestamp: Date.now() });
+		manager.appendMessage({
+			role: "assistant", content: [{ type: "text", text: "History recorded" }], api: "anthropic-messages", provider: "test", model: "test",
+			usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+			stopReason: "stop", timestamp: Date.now(),
+		});
+		if (compacted) manager.appendCompaction("Earlier history", first, 100);
+		const { session } = await createAgentSession({ cwd: directory, agentDir: directory, settingsManager, resourceLoader: resources, sessionManager: manager });
+		try {
+			await session.bindExtensions({ mode: "json", onError(error) { throw new Error(error.error); } });
+			await run(session, manager);
+		} finally { session.dispose(); }
+	} finally { await rm(directory, { recursive: true, force: true }); }
+}
+
+// Availability is a public tool contract. The real host catches declaration and nested-call bypasses;
+// existing search tests cover result contents only. No production test-only exports are needed.
+test("recall stays hidden until successful compaction and follows the active branch", async () => {
+	await withHost(async (session, manager) => {
+		const runner = session.extensionRunner!;
+		const context = () => session.extensionRunner!.createToolContext("availability", undefined);
+		const visible = () => {
+			assert.equal(session.getAllTools().find((tool) => tool.name === "recall")?.exposure, "direct");
+			assert.ok(session.getActiveToolNames().includes("recall"));
+			assert.ok(context().tools.some((tool) => tool.name === "recall"));
+		};
+		const hidden = async () => {
+			assert.equal(session.getAllTools().find((tool) => tool.name === "recall")?.exposure, "hidden");
+			assert.ok(!session.getActiveToolNames().includes("recall"));
+			assert.ok(!context().tools.some((tool) => tool.name === "recall"));
+			const denied = await context().executeTool("recall", { query: "history-probe" });
+			assert.equal(denied.isError, true);
+			assert.match(resultText(denied.result), /not found|not available|unknown tool/i);
+			await assert.rejects(runner.getToolDefinition("recall")!.execute("guard", { query: "history-probe" }, undefined, undefined, context()), /unavailable until/);
+		};
+		const otherTools = session.getActiveToolNames();
+		await hidden();
+		session.setActiveToolsByName([...otherTools, "recall"]);
+		await hidden();
+		await runner.emit({ type: "session_before_compact", preparation: {} as any, branchEntries: manager.getBranch(), reason: "manual", willRetry: false, signal: new AbortController().signal });
+		await hidden();
+		for (const aborted of [false, true]) {
+			await runner.emit({ type: "session_compact_failed", reason: "manual", aborted, willRetry: false, fromExtension: false });
+			await hidden();
+		}
+
+		const first = manager.getLeafId()!;
+		manager.appendCompaction("Earlier history", first, 100);
+		const compaction = manager.getBranch().find((entry) => entry.type === "compaction")!;
+		await runner.emit({ type: "session_compact", compactionEntry: compaction, fromExtension: false, reason: "manual", willRetry: false });
+		visible();
+		assert.deepEqual(session.getActiveToolNames().filter((name) => name !== "recall"), otherTools);
+		const recalled = await context().executeTool("recall", { query: "history-probe" });
+		assert.equal(recalled.isError, false);
+		assert.match(resultText(recalled.result), /history-probe/);
+
+		manager.branch(first);
+		await runner.emit({ type: "session_tree", oldLeafId: compaction.id, newLeafId: first });
+		await hidden();
+		assert.deepEqual(session.getActiveToolNames(), otherTools);
+		manager.branch(compaction.id);
+		await runner.emit({ type: "session_tree", oldLeafId: first, newLeafId: compaction.id });
+		visible();
+		await session.reload();
+		visible();
+	});
+});
+
+test("recall restores availability from compacted history and stays hidden when reloaded before that compaction", async () => {
+	await withHost(async (session, manager) => {
+		assert.ok(session.getActiveToolNames().includes("recall"));
+		const first = manager.getBranch().find((entry) => entry.type === "message")!;
+		manager.branch(first.id);
+		await session.reload();
+		assert.ok(!session.getActiveToolNames().includes("recall"));
+		assert.equal(session.getAllTools().find((tool) => tool.name === "recall")?.exposure, "hidden");
+	}, true);
+});
+
+test("boundary compaction enables recall for the next response in the same run", async () => {
+	for (const boundary of ["turn_end", "agent_before_settle"] as const) {
+		let requests = 0;
+		await withHost(async (session) => {
+			await session.setModel({ id: "recall-test", name: "Recall test", api: "anthropic-messages", provider: "test", baseUrl: "http://localhost", reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 200000, maxTokens: 1000 });
+			const declared: boolean[] = [];
+			const active: boolean[] = [];
+			session.agent.streamFunction = (_model, context) => {
+				const tools = getCurrentSystemMessage(context.messages)?.toolsAdded ?? [];
+				declared.push(tools.some((tool) => tool.name === "recall"));
+				active.push(session.getActiveToolNames().includes("recall"));
+				requests++;
+				const stream = createAssistantMessageEventStream();
+				const message = {
+					role: "assistant" as const,
+					content: requests === 2 ? [{ type: "toolCall" as const, id: "boundary-recall", name: "recall", arguments: { query: "Earlier context" } }] : [{ type: "text" as const, text: "Response" }],
+					api: "anthropic-messages" as const, provider: "test", model: "recall-test",
+					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+					stopReason: requests === 2 ? "toolUse" as const : "stop" as const, timestamp: Date.now(),
+				};
+				stream.push({ type: "done", reason: message.stopReason, message });
+				return stream;
+			};
+			await session.prompt("Continue after boundary compaction");
+			assert.equal(requests, 3);
+			assert.deepEqual(declared, [false, true, true], `${boundary}: provider declarations`);
+			assert.deepEqual(active, [false, true, true], `${boundary}: active tools`);
+			const result = session.messages.find((entry) => entry.role === "toolResult" && entry.toolCallId === "boundary-recall");
+			assert.ok(result?.role === "toolResult");
+			assert.equal(result.isError, false);
+			assert.match(resultText(result), /Earlier context/);
+		}, false, [(pi) => {
+			pi.registerProvider("test", { baseUrl: "http://localhost", apiKey: "test-key", api: "anthropic-messages", models: [{ id: "recall-test", name: "Recall test", reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 200000, maxTokens: 1000 }] });
+			pi.on(boundary, () => {
+				if (requests !== 1) return;
+				return { entries: [{ type: "compaction" as const, summary: "Earlier context", firstKeptEntryId: null }], continue: true };
+			});
+		}]);
+	}
+});
 
 test("reports source session and entry IDs for ranked matches", async () => {
 	const dir = await mkdtemp(join(tmpdir(), "recall-"));

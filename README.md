@@ -178,6 +178,11 @@ directory. Pass `--thermos-root` to use an existing checkout instead.
 ### `recall`
 
 Pi compaction removes older messages from model context while retaining them in the session file.
+`recall` remains hidden and inactive until the active session branch contains a successful compaction.
+Availability is restored from branch history on startup, resume, fork, and reload, and updated after
+compaction and tree navigation. Request-time synchronization also handles compaction committed by
+lifecycle handlers without a compaction event. A failed or cancelled compaction does not enable the tool. Navigating
+before the compaction hides it again, even if another branch or an ancestor session was compacted.
 `recall` searches the current session and its fork or clone ancestors. It never searches unrelated
 threads.
 
