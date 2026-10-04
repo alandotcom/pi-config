@@ -24,12 +24,32 @@ user's request.
 
 ## Autonomy and communication
 
-Carry authorized work through completion within scope. Perform reversible
-investigation before asking for clarification. Ask when the answer materially
-changes architecture, acceptance criteria, data, or external side effects.
+Treat a substantial implementation request as authorization to complete the task
+through independent review, remediation, required checks, atomic commits, push,
+and an open or updated pull request. Run required review automatically. Inspect
+PR-attached checks and resolve failures caused by the change. Finish with the PR
+URL and observed check status, or a concrete blocker and the unfinished step.
+Questions, read-only investigations, and explicit requests for an intermediate
+result retain their narrower scope.
+
+Perform reversible investigation before asking for clarification. Make routine
+implementation and workflow decisions within the agreed scope. Ask when the
+answer materially changes architecture, acceptance criteria, data, or external
+side effects beyond ordinary branch publication and PR creation. Merges, releases,
+deployments, production-data changes, credential changes, and destructive Git
+operations require explicit authorization.
 
 If an instruction causes a pause, permission request, unfinished authorized work,
 or direction change, name the file, quote the rule, and explain its effect.
+
+## Branch ownership
+
+Create and switch to a task branch from `main` or the repository's default branch
+when requested implementation needs a topic branch. Keep an existing active topic
+branch checked out; switching that topic branch requires explicit approval. Use a
+separate worktree for independently scoped work when needed to preserve the active
+branch. Preserve all pre-existing uncommitted changes and publish only task-owned
+files.
 
 ## Pstack workflow
 
@@ -42,11 +62,10 @@ review take precedence over the
 ordinary delegation and review defaults below. Off uses those ordinary defaults.
 The user can save a default with `/pstack save <level>`.
 
-Pstack changes process only. Preserve repository scope, branch ownership,
-production protections, required checks and review lanes, and external-action
-approval boundaries. Keep the user's approved branch checked out and preserve
-existing changes. A generic autonomous request does not authorize branch changes,
-destructive Git operations, unrelated work, deployments, or data mutation.
+Pstack changes process only. Apply the autonomy and branch-ownership rules above,
+repository scope, production protections, required checks and review lanes, and
+external-action approval boundaries. The workflow level grants no additional
+authority.
 
 Use TintinWeb's `general-purpose` agent with the pstack skill's bundled worker or
 reviewer brief. Include the active level and parent-owned gates. These task briefs
@@ -109,24 +128,23 @@ execution-mode change.
 
 ### Review
 
-In active full or focused pstack work, independently review every code change
-before declaring completion. Follow the repository's required workflow and keep
-the reviewer separate from the implementation owner. Full additionally applies
-its design and adversarial-review triggers. React and Next.js reviewers load
-both `vercel-react-best-practices` and `vercel-composition-patterns`.
+Every code change receives independent review before the agent declares the work
+complete. Documentation-only, skill-only, and prose-only changes are exempt unless
+the user requests review. Use the repository's required review workflow when one
+exists; passing tests, static checks, builds, or a generic review does not replace
+that workflow. The reviewer must differ from the implementation owner. Full
+pstack additionally applies its design and adversarial-review triggers.
 
-Outside active pstack work, use independent review for a concrete correctness, security, data-integrity, or
-architectural risk, or when the user requests it. Routine low-risk edits use local
-verification. The reviewer must differ from the implementation owner. Use one
-review cycle by default, with local remediation and targeted checks when practical.
-Resume the same reviewer for unresolved judgment calls; small mechanical fixes
-need no new review dispatch. Add a cycle only at the user's request or when
-remediation adds substantial new scope.
+Use one review cycle by default, with local remediation and targeted checks. Fix
+each confirmed finding or record a deliberate deferral with its reason and owner.
+Resume the same reviewer for unresolved judgment calls. Rerun the affected review
+stage when remediation changes its review boundary or adds substantial scope.
 
-Use a fresh `general-purpose` agent for independent review and instruct it to
-remain read-only. Specify the review focus: correctness, security, architecture,
-frontend, performance, or Effect. Include the change boundary, concrete risks,
-and any required review skills. Use separate review tasks only for distinct risk
+When no repository review workflow exists, use a fresh `general-purpose` agent and
+instruct it to remain read-only. Specify the review focus, change boundary,
+concrete risks, and required review skills. For React, JSX/TSX, or Next.js changes,
+the reviewer must load and apply both `vercel-react-best-practices` and
+`vercel-composition-patterns`. Use separate review tasks only for distinct risk
 domains that need independent attention.
 
 When delegation is used, include a short `Delegation` entry in the final response
