@@ -3,9 +3,9 @@
 ## Source
 
 This package contains a Pi adaptation of Lauren Tan's pstack from
-[Cursor's plugins repository](https://github.com/cursor/plugins/tree/9511e60321f7e533a187d62854a3d53a53752874/pstack).
-The audited source is version **0.15.7**, commit
-`9511e60321f7e533a187d62854a3d53a53752874`.
+[Cursor's plugins repository](https://github.com/cursor/plugins/tree/e43c7ee26e0038c6c1fa8380dd34ce86ff94cb2a/pstack).
+The audited source is version **0.15.9**, commit
+`e43c7ee26e0038c6c1fa8380dd34ce86ff94cb2a`.
 
 Pstack is licensed under MIT. The complete upstream license is retained in
 [`pstack-LICENSE`](pstack-LICENSE). The adaptation is maintained by pi-config.
@@ -17,18 +17,18 @@ unmodified upstream snapshot.
 
 The original engineering principles, grounding, candidate comparison, independent
 cross-judging, playbook checklists, and real-artifact verification remain the basis
-of full mode. The single `skills/pstack/SKILL.md` entrypoint owns the adjustable
-full, focused, and off contracts. Namespaced explicit command skills under
+of the skills. The `skills/pstack/SKILL.md` entrypoint routes workflow requests and
+owns the shared Pi contract. Namespaced explicit command skills under
 `skills/pstack/commands` point to each nested reference. Users can discover and
 invoke them directly without shadowing installed tdd, recall, or teach skills.
 
 The port translates Cursor Task dispatch into TintinWeb Agent calls using its
 general-purpose agent. Bundled worker and reviewer task briefs retain repository
 instructions and require leaf execution. No separate agent files are installed. The parent owns synthesis, integration, external writes, and independent
-review. Existing specialist model choices are preserved. The native controller
-owns session level and checklist state; it is not a second delegation engine. It
-starts off unless an explicit preference selects another level. `/poteto-mode`
-enables full for the session, and bare `/pstack` displays the checklist.
+review. Existing specialist model choices are preserved. The native extension
+provides resource discovery and branch-local checklist state. Bare `/pstack`
+displays the checklist. Poteto Mode and individual workflows are selected through
+skills; there is no extension activation command or workflow-level state.
 
 Platform-heavy references are adapted at their owners:
 
@@ -44,11 +44,37 @@ Platform-heavy references are adapted at their owners:
   plan checker, orchestration store, dependency bootstrap, lockfile, and script
   test suite are omitted. They are not loaded or installed automatically.
 
-Full retains mandatory delegated Feature implementation and at least two
+Poteto Mode retains mandatory delegated Feature implementation and at least two
 structurally distinct designs for boundary-crossing code. Pi cannot reproduce
 Cursor's cloud runtime through prose. Reduced model diversity and unavailable
-runtime capabilities must be reported explicitly. Full does not grant broader
+runtime capabilities must be reported explicitly. Workflow selection does not grant broader
 permissions or override production, branch, test, or review safeguards.
+
+## 0.15.9 update
+
+Reviewed the [two-commit delta from 0.15.7](https://github.com/cursor/plugins/compare/9511e60321f7e533a187d62854a3d53a53752874...e43c7ee26e0038c6c1fa8380dd34ce86ff94cb2a).
+Architect now screens designs for agents with a partial view of the repository,
+including split ownership, multiple paths for one task, importable internals, and
+hand-synced lists. Perf issue uses the seven ordered performance mantras;
+hillclimb borrows their order while retaining its own stopping rules. The
+benchmark checklist points to that guidance. Correct and the seven-question
+benchmark checklist were already included in the 0.15.7 adaptation.
+
+Retained the Pi execution contract, parent-model inheritance, leaf ownership, and
+existing command discovery. The upstream manifest version is
+recorded here rather than shipping Cursor's manifest. The hillclimb link to the
+Perf issue playbook resolves relative to its containing file. The MIT license is
+unchanged; no new platform capability or external dependency was added.
+
+## Skill-driven workflow selection
+
+Removed the Pi-only full/focused/off controller and duplicate activation command
+as recorded in [ADR-004](../decisions/0004-pstack-skill-routing.md). The extension
+ignores old `defaultLevel` preferences and mode session entries, preserves them
+without writes, and removes the retired controller's tagged prompt on resume.
+Optional model preferences remain available to the setup skill. Bundled task
+briefs establish leaf ownership without a level marker. The original 0.15.9
+workflow and principle instructions remain available through the same 49 commands.
 
 ## Updating
 
@@ -68,8 +94,8 @@ permissions or override production, branch, test, or review safeguards.
    Verify both whole-package and pstack-only extension loading, including command discovery.
 6. Run `npm test`, the non-mutating local installer path, and package dry-run.
    Run a throwaway SDK command/state smoke and independently review the integrated
-   controller, prompts, bundled task briefs, and dependency closure.
-7. Try one bounded workflow at the affected level with real host tools. Record the
+   checklist extension, migration prompts, bundled task briefs, and dependency closure.
+7. Try one bounded selected workflow with real host tools. Record the
    actual evidence. A compile, a self-report, or an invented platform capability
    does not demonstrate faithful behavior.
 

@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Redesign From First Principles
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 When integrating a change, don't bolt it onto the existing design. Redesign as if the requirement had been there from the start.
 

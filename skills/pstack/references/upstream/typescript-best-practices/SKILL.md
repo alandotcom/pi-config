@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # TypeScript best practices
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 Apply the **type-system-discipline** principle skill first.
 

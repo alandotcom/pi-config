@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Explain the Number
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 A measured number is a claim about a system. Before you trust it, report it, or act on it, find what limits it and rule out that it measured something else.
 

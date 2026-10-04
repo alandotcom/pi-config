@@ -5,7 +5,7 @@ disable-model-invocation: true
 ---
 # Build the Lever
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 When the work isn't trivial, build the tool that does it instead of doing it by hand.
 

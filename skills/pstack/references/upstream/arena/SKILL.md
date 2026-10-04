@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Arena
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 Fan out N parallel attempts at the same task. Read every candidate end to end. Pick the strongest as the base. Graft the best ideas from the others into it. Verify the synthesized result.
 
@@ -36,7 +36,7 @@ Spawn independent candidates in one message with `run_in_background: true`, stag
 
 Each rationale names the alternatives the candidate considered and what it rejected.
 
-A failed seat is a reported gap. Replace or correct the failed seat before continuing when fewer than two structurally distinct designs remain. Full requires two distinct designs and an independent cross-judge; a dropout cannot waive either gate.
+A failed seat is a reported gap. Replace or correct the failed seat before continuing when fewer than two structurally distinct designs remain. The workflow requires two distinct designs and an independent cross-judge; a dropout cannot waive either gate.
 
 ## Phase C: Cross-judge
 

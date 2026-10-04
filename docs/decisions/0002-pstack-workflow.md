@@ -3,6 +3,7 @@
 ## Status
 
 Accepted. The built-in default is superseded by [ADR-003](0003-pstack-opt-in.md).
+Workflow levels and activation are superseded by [ADR-004](0004-pstack-skill-routing.md).
 
 ## Date
 

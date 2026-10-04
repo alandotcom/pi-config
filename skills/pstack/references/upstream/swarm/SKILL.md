@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Swarm
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 Fan out N local workers. They may cover separate slices, race the same brief, or mix both. The parent waits, aggregates, and returns one report.
 

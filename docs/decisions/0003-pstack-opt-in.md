@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted. Supersedes the built-in default in [ADR-002](0002-pstack-workflow.md).
+Superseded by [ADR-004](0004-pstack-skill-routing.md). Originally superseded the
+built-in default in [ADR-002](0002-pstack-workflow.md).
 
 ## Date
 

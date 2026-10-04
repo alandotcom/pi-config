@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Attack the Premise
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 When two or more fixes that share one premise have failed the same gate, suspect the premise, not the fixes.
 

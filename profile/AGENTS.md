@@ -33,14 +33,12 @@ or direction change, name the file, quote the rule, and explain its effect.
 
 ## Pstack workflow
 
-When the session exposes an active `pstack` level, read the installed `pstack`
-skill for meaningful work. Off is the built-in default. `/poteto-mode` enables
-full for the current session; `/poteto-mode focused` enables focused. `/pstack`
-also changes levels. Explicit saved defaults remain effective. The active level's
-investigation, design exploration, delegated implementation, and independent
-review take precedence over the
-ordinary delegation and review defaults below. Off uses those ordinary defaults.
-The user can save a default with `/pstack save <level>`.
+Use pstack through its skills when the user selects a workflow. Read the installed
+`pstack` entrypoint and the selected reference. `/skill:pstack-poteto-mode` provides
+the broader playbook routing; individual skills run their named workflow. Follow
+the selected workflow's investigation, design, delegation, and review steps within
+the user's scope. Ordinary work uses the delegation and review defaults below.
+There is no session activation command or workflow-level preference.
 
 Pstack changes process only. Preserve repository scope, branch ownership,
 production protections, required checks and review lanes, and external-action
@@ -49,7 +47,7 @@ existing changes. A generic autonomous request does not authorize branch changes
 destructive Git operations, unrelated work, deployments, or data mutation.
 
 Use TintinWeb's `general-purpose` agent with the pstack skill's bundled worker or
-reviewer brief. Include the active level and parent-owned gates. These task briefs
+reviewer brief. Include the selected workflow, exact assignment, and parent-owned gates. These task briefs
 retain repository instructions and require leaf execution without delegation.
 Existing specialists retain their roles and model pins.
 
@@ -109,10 +107,10 @@ execution-mode change.
 
 ### Review
 
-In active full or focused pstack work, independently review every code change
-before declaring completion. Follow the repository's required workflow and keep
-the reviewer separate from the implementation owner. Full additionally applies
-its design and adversarial-review triggers. React and Next.js reviewers load
+In a selected pstack workflow, independently review every code change before
+declaring completion. Follow the selected workflow's design and adversarial-review
+triggers and the repository's required review lanes. Keep the reviewer separate
+from the implementation owner. React and Next.js reviewers load
 both `vercel-react-best-practices` and `vercel-composition-patterns`.
 
 Outside active pstack work, use independent review for a concrete correctness, security, data-integrity, or

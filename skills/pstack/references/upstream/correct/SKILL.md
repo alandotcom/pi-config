@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Correct
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 The operator keeps correcting agents in this repo for the same mistakes. Change the repo so the next agent can't make them.
 

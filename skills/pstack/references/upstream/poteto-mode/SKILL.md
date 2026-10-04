@@ -1,12 +1,12 @@
 ---
 name: poteto-mode
-description: poteto's agent style for concise, detailed responses, deliberate subagents, unslopped prose, simple code, and verified work. Use for poteto, /poteto-mode, or requests to work in this style.
+description: poteto's agent style for concise, detailed responses, deliberate subagents, unslopped prose, simple code, and verified work. Use for poteto, /skill:pstack-poteto-mode, or requests to work in this style.
 disable-model-invocation: true
 ---
 
 # Poteto mode
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 ## Non-negotiables
 
@@ -82,7 +82,7 @@ Follow the Pi execution contract and the repository's authorization rules. Perfo
 
 ## Subagents
 
-Use background Agent calls through TintinWeb. Feature implementation belongs to general-purpose agent with the bundled worker brief; bounded read-only investigation, design candidates, cross-judging, and review belong to general-purpose agent with the bundled reviewer brief. Include the effective level, exact scope, evidence, completed parent gates, and required outputs in each brief. Leaves own their assigned artifact directly. The coordinator owns fan-out, synthesis, integration, and independent review.
+Use background Agent calls through TintinWeb. Feature implementation belongs to general-purpose agent with the bundled worker brief; bounded read-only investigation, design candidates, cross-judging, and review belong to general-purpose agent with the bundled reviewer brief. Include the selected workflow, exact scope, evidence, completed parent gates, and required outputs in each brief. Leaves own their assigned artifact directly. The coordinator owns fan-out, synthesis, integration, and independent review.
 
 Choose only verified available models through the Pi execution contract. Existing specialist pins remain authoritative. Retrieve completed results, inspect evidence and diffs, and write the final synthesis yourself. Failed dispatch and missing capabilities are explicit gaps, not permission to invent a fallback.
 

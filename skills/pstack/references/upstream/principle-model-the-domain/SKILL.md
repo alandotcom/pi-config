@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Model the Domain
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 Encode the real domain in a data structure instead of scattering it across conditionals.
 

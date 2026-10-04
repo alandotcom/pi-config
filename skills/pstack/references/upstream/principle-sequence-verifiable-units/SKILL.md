@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Sequence work into verifiable units
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 Order work as a sequence of small units, each ending in a state you can check, and don't advance until the current one is green.
 

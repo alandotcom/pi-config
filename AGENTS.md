@@ -1,7 +1,7 @@
 # Working in this repository
 
 `pi-config` is a shareable Pi package and an optional full agent profile. The native package ships
-`recall`, `ask_async`, the pstack workflow controller, and the local skills. The explicit installer applies the global
+`recall`, `ask_async`, the pstack checklist extension, and the local skills. The explicit installer applies the global
 instructions, settings, models, external skills, packages, and Thermos integration under `profile/`.
 
 ## Distribution boundaries
@@ -37,11 +37,12 @@ purpose. In headless modes it must return a plain message rather than wait for u
 Each declared extension has an explicit entrypoint. Keep helpers behind an entrypoint rather than
 listing a directory whose files Pi might interpret as independent extensions.
 
-Pstack adds only its own prompt section, commands, and session checklist. TintinWeb remains the
-only delegation engine. Off is the built-in default; `/poteto-mode` enables full for the session,
-and `/poteto-mode focused` enables focused. Explicit saved defaults remain effective. Levels
-change process, never authority. State follows the active session branch. Saved preferences retain
-unrelated keys and get a backup before replacement. Extension loading never writes global state.
+Pstack workflows are selected through skills, including `pstack-poteto-mode`; no activation
+command, workflow level, or saved default is added. The extension provides resource discovery,
+`/pstack` checklist display, and `pstack_tasks`. Checklist state follows the active session branch.
+On resume, remove only the retired controller's tagged mode prompt; legacy preferences and mode
+entries remain untouched and have no effect. TintinWeb remains the only delegation engine.
+Workflow selection changes process, never authority. Extension loading never writes global state.
 Pstack worker and reviewer instructions are bundled task briefs sent to TintinWeb's general-purpose
 agent. Pstack requires no separately installed agent definitions. Other agent overrides remain
 optional profile resources installed only through the explicit installer.

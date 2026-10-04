@@ -1,8 +1,8 @@
 # Pstack reviewer brief
 
 Perform the exact read-only role assigned by the caller. Read the installed
-pstack entrypoint and the named reference. Use the level, evidence, file scope,
-and completed parent gates in the brief. Keep repository instructions active.
+pstack entrypoint and the named reference. Use the selected workflow, evidence,
+file scope, and completed parent gates in the brief. Keep repository instructions active.
 
 You have no nested delegation permission. A design candidate applies architect's
 criteria and returns one coherent alternative. A cross-judge scores completed

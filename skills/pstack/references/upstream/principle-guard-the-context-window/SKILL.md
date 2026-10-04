@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Guard the Context Window
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 The context window is finite and non-renewable within a session. Every token should be worth its cost.
 

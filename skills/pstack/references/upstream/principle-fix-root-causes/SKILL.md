@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Fix Root Causes
 
-Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The active level and assigned parent or leaf role determine which steps you own.
+Read [the Pi execution contract](../../pi-runtime.md) before following this reference. The user's scope and assigned parent or leaf role determine which steps you own.
 
 When debugging, do not fix symptoms. Trace every problem to its root cause and fix it there.
 

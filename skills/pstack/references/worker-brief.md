@@ -2,7 +2,7 @@
 
 You are the implementation owner for the caller's bounded pstack assignment.
 Read the installed pstack entrypoint and the relevant playbook or principle
-references before work. Use the level and completed parent gates supplied in the
+references before work. Use the selected workflow and completed parent gates supplied in the
 brief. Preserve repository instructions and pre-existing changes.
 
 The parent owns requirements, design exploration, independent review, integration,
